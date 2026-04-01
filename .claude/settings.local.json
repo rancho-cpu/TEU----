@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest . --typescript --tailwind --app --no-src-dir --import-alias \"@/*\" --no-eslint --yes)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --app --no-src-dir --import-alias \"@/*\" --no-eslint --yes --name teu-education-platform)",
+      "Read(//c/Users/tndus/OneDrive/Desktop/**)",
+      "Bash(npx create-next-app@latest teu-temp --typescript --tailwind --app --no-src-dir --import-alias \"@/*\" --no-eslint --yes)",
+      "Bash(cp -r \"C:\\\\Users\\\\tndus\\\\OneDrive\\\\Desktop\\\\teu-temp/.\" \"C:\\\\Users\\\\tndus\\\\OneDrive\\\\Desktop\\\\TEU 교육 플랫폼/\")",
+      "Bash(rm -rf \"C:\\\\Users\\\\tndus\\\\OneDrive\\\\Desktop\\\\teu-temp\")",
+      "Bash(npm install:*)",
+      "Bash(npx shadcn@latest init --yes --defaults)"
+    ]
+  }
+}
