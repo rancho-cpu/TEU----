@@ -8,7 +8,30 @@
       "Bash(cp -r \"C:\\\\Users\\\\tndus\\\\OneDrive\\\\Desktop\\\\teu-temp/.\" \"C:\\\\Users\\\\tndus\\\\OneDrive\\\\Desktop\\\\TEU 교육 플랫폼/\")",
       "Bash(rm -rf \"C:\\\\Users\\\\tndus\\\\OneDrive\\\\Desktop\\\\teu-temp\")",
       "Bash(npm install:*)",
-      "Bash(npx shadcn@latest init --yes --defaults)"
+      "Bash(npx shadcn@latest init --yes --defaults)",
+      "Bash(npx shadcn@latest add dialog dropdown-menu tabs badge avatar input textarea select label card separator)",
+      "Bash(mkdir -p \"C:/Users/tndus/OneDrive/Desktop/TEU 교육 플랫폼/app/\\(dashboard\\)/[cohortId]/contents\")",
+      "Bash(mkdir -p \"C:/Users/tndus/OneDrive/Desktop/TEU 교육 플랫폼/app/\\(dashboard\\)/[cohortId]/challenges\")",
+      "Bash(ls \"C:/Users/tndus/OneDrive/Desktop/TEU 교육 플랫폼/app/\\(dashboard\\)\")",
+      "Bash(ls \"C:/Users/tndus/OneDrive/Desktop/TEU 교육 플랫폼/app/\\(dashboard\\)/[cohortId]\")",
+      "Bash(ls \"C:/Users/tndus/OneDrive/Desktop/TEU 교육 플랫폼/app/\\(dashboard\\)/[cohortId]/community\")",
+      "Bash(ls \"C:/Users/tndus/OneDrive/Desktop/TEU 교육 플랫폼/app/\\(dashboard\\)/[cohortId]/members\")",
+      "Bash(ls \"C:/Users/tndus/OneDrive/Desktop/TEU 교육 플랫폼/app/\\(dashboard\\)/[cohortId]/settings\")",
+      "Bash(ls \"C:/Users/tndus/OneDrive/Desktop/TEU 교육 플랫폼/app/\\(dashboard\\)/[cohortId]/statistics\")",
+      "Bash(ls \"C:/Users/tndus/OneDrive/Desktop/TEU 교육 플랫폼/app/\\(dashboard\\)/[cohortId]/community/\")",
+      "Bash(ls \"C:/Users/tndus/OneDrive/Desktop/TEU 교육 플랫폼/app/\\(dashboard\\)/[cohortId]/members/\")",
+      "Bash(ls \"C:/Users/tndus/OneDrive/Desktop/TEU 교육 플랫폼/app/\\(dashboard\\)/[cohortId]/settings/\")",
+      "Bash(ls \"C:/Users/tndus/OneDrive/Desktop/TEU 교육 플랫폼/app/\\(dashboard\\)/[cohortId]/statistics/\")",
+      "Bash(find 'C:/Users/tndus/OneDrive/Desktop/TEU 교육 플랫폼/app' -name *.tsx -o -name *.ts)",
+      "Bash(cat \"C:/Users/tndus/OneDrive/Desktop/TEU 교육 플랫폼/app/\\(dashboard\\)/[cohortId]/layout.tsx\")",
+      "Bash(cat \"C:/Users/tndus/OneDrive/Desktop/TEU 교육 플랫폼/app/\\(dashboard\\)/[cohortId]/challenges/page.tsx\")",
+      "Bash(find 'C:/Users/tndus/OneDrive/Desktop/TEU 교육 플랫폼' -name *.tsx -newer 'C:/Users/tndus/OneDrive/Desktop/TEU 교육 플랫폼/app/\\(dashboard\\)/[cohortId]/challenges/page.tsx')",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(find \"C:\\\\Users\\\\tndus\\\\OneDrive\\\\Desktop\\\\TEU 교육 플랫폼/app/\\(dashboard\\)/[cohortId]/contents\" -type f)",
+      "Bash(xargs grep:*)",
+      "Bash(xargs basename:*)",
+      "Bash(ls -la \"/c/Users/tndus/OneDrive/Desktop/TEU 교육 플랫폼/app/\\(dashboard\\)/[cohortId]/\")"
     ]
   }
 }
