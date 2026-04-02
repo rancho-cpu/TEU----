@@ -126,7 +126,9 @@ export function ContentsClientWrapper({
                     onUpdated={(updated) => setLocalLectures((prev) => prev.map((l) => l.id === updated.id ? updated : l))}
                   />
                 ) : (
-                  <SurveyCard key={`survey-${item.id}`} survey={item as Survey} isAdmin={isAdmin} />
+                  <SurveyCard key={`survey-${item.id}`} survey={item as Survey} isAdmin={isAdmin}
+                    onDeleted={(id) => setLocalSurveys((prev) => prev.filter((s) => s.id !== id))}
+                  />
                 )
               )}
             </div>
@@ -156,7 +158,9 @@ export function ContentsClientWrapper({
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {localSurveys.map((survey) => (
-                <SurveyCard key={survey.id} survey={survey} isAdmin={isAdmin} />
+                <SurveyCard key={survey.id} survey={survey} isAdmin={isAdmin}
+                  onDeleted={(id) => setLocalSurveys((prev) => prev.filter((s) => s.id !== id))}
+                />
               ))}
             </div>
           )}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import * as XLSX from 'xlsx'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -15,13 +16,14 @@ import {
 import { format, parseISO, isPast } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import type { Survey, SurveyQuestion, SurveyResponse } from '@/types'
-import { ClipboardList, Users, Star, BarChart2 } from 'lucide-react'
+import { ClipboardList, Users, Star, BarChart2, Trash2, Download } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface SurveyCardProps {
   survey: Survey
   responseCount?: number
   isAdmin?: boolean
+  onDeleted?: (id: string) => void
 }
 
 function formatDeadline(dateStr: string | null): string {
@@ -158,12 +160,14 @@ function TextResult({ answers }: { answers: string[] }) {
 // ────────────────────────────────────────────────────────────
 // Main component
 // ────────────────────────────────────────────────────────────
-export function SurveyCard({ survey, responseCount, isAdmin }: SurveyCardProps) {
+export function SurveyCard({ survey, responseCount, isAdmin, onDeleted }: SurveyCardProps) {
   const [mode, setMode] = useState<'idle' | 'submit' | 'results'>('idle')
   const [answers, setAnswers] = useState<AnswerMap>({})
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   // results state
   const [responses, setResponses] = useState<SurveyResponse[]>([])
@@ -192,6 +196,57 @@ export function SurveyCard({ survey, responseCount, isAdmin }: SurveyCardProps) 
       setResponses([])
     } finally {
       setLoadingResults(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!confirm(`"${survey.title}" 설문을 삭제하시겠습니까?`)) return
+    setDeleting(true)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.from('surveys').delete().eq('id', survey.id)
+      if (error) throw error
+      onDeleted?.(survey.id)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '삭제 실패')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const handleExcelExport = async () => {
+    setExporting(true)
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('survey_responses')
+        .select('*, profile:profiles(name, email)')
+        .eq('survey_id', survey.id)
+        .order('submitted_at', { ascending: true })
+      if (error) throw error
+
+      const rows = (data ?? []).map((r) => {
+        const row: Record<string, string | number> = {
+          '이름': (r.profile as { name?: string } | null)?.name ?? '',
+          '이메일': (r.profile as { email?: string } | null)?.email ?? '',
+          '응답 시간': r.submitted_at
+            ? format(parseISO(r.submitted_at), 'yyyy/MM/dd HH:mm', { locale: ko })
+            : '',
+        }
+        survey.questions.forEach((q, i) => {
+          row[`Q${i + 1}. ${q.label}`] = (r.responses as Record<string, string | number>)[`q${i}`] ?? ''
+        })
+        return row
+      })
+
+      const ws = XLSX.utils.json_to_sheet(rows)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, '설문결과')
+      XLSX.writeFile(wb, `${survey.title}_결과.xlsx`)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '내보내기 실패')
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -237,7 +292,17 @@ export function SurveyCard({ survey, responseCount, isAdmin }: SurveyCardProps) 
   return (
     <>
       {/* Card */}
-      <div className="group bg-white rounded-xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-md hover:border-pink-300 transition-all duration-200">
+      <div className="group relative bg-white rounded-xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-md hover:border-pink-300 transition-all duration-200">
+        {/* Admin delete button */}
+        {isAdmin && (
+          <button
+            onClick={(e) => { e.stopPropagation(); handleDelete() }}
+            disabled={deleting}
+            className="absolute top-3 right-3 z-10 p-1 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
         <div className="h-1.5 bg-gradient-to-r from-pink-400 to-rose-400" />
         <div className="p-4 space-y-3">
           <div className="flex items-center gap-2 flex-wrap">
@@ -366,7 +431,17 @@ export function SurveyCard({ survey, responseCount, isAdmin }: SurveyCardProps) 
           ) : (
             <ResultsView survey={survey} responses={responses} />
           )}
-          <DialogFooter>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={handleExcelExport}
+              disabled={exporting}
+            >
+              <Download className="w-3.5 h-3.5" />
+              {exporting ? '내보내는 중...' : '엑셀 다운로드'}
+            </Button>
             <Button variant="outline" onClick={handleClose}>닫기</Button>
           </DialogFooter>
         </DialogContent>

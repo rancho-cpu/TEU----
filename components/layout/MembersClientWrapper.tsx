@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
-import { Search, UserPlus, Shield, User, Users, UserMinus, Plus } from 'lucide-react'
+import { Search, UserPlus, Shield, User, Users, UserMinus, Plus, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface MembersClientWrapperProps {
@@ -274,14 +274,25 @@ export function MembersClientWrapper({
           </DialogHeader>
           <Separator />
 
-          <div className="relative mt-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              placeholder="이름 또는 이메일 검색..."
-              value={candidateSearch}
-              onChange={(e) => setCandidateSearch(e.target.value)}
-              className="pl-9 text-sm"
-            />
+          <div className="flex items-center gap-2 mt-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="이름 또는 이메일 검색..."
+                value={candidateSearch}
+                onChange={(e) => setCandidateSearch(e.target.value)}
+                className="pl-9 text-sm"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              onClick={openInvite}
+              disabled={loadingCandidates}
+            >
+              <RefreshCw className={`w-4 h-4 ${loadingCandidates ? 'animate-spin' : ''}`} />
+            </Button>
           </div>
 
           <div className="flex-1 overflow-y-auto mt-2 space-y-1 min-h-0">
