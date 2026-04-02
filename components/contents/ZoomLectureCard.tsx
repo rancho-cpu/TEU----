@@ -124,13 +124,11 @@ export function ZoomLectureCard({ lecture, isAdmin, onDeleted, onUpdated }: Zoom
           {isAdmin && (
             <div className="absolute top-2 right-2 z-20" onClick={(e) => e.stopPropagation()}>
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm"
-                    className="h-7 w-7 p-0 bg-black/40 hover:bg-black/60 text-white rounded-full"
-                    disabled={deleting}
-                  >
-                    <MoreVertical className="w-4 h-4" />
-                  </Button>
+                <DropdownMenuTrigger
+                  className="h-7 w-7 p-0 bg-black/40 hover:bg-black/60 text-white rounded-full inline-flex items-center justify-center"
+                  disabled={deleting}
+                >
+                  <MoreVertical className="w-4 h-4" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => { setEditTitle(lecture.title); setEditOpen(true) }}>
