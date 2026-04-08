@@ -52,15 +52,16 @@ export function MembersClientWrapper({
   const supabase = createClient()
 
   const handleSyncProfiles = async () => {
+    if (!confirm('가입된 모든 사용자를 이 기수 구성원으로 추가하시겠습니까?')) return
     setSyncing(true)
     try {
-      const res = await fetch('/api/admin/sync-profiles', { method: 'POST' })
+      const res = await fetch(`/api/admin/sync-profiles?cohortId=${cohortId}`, { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      alert(`✅ ${data.synced}명 동기화 완료! 멤버 추가 목록을 다시 확인해보세요.`)
+      // 멤버 목록 새로고침
+      window.location.reload()
     } catch (e) {
       alert(e instanceof Error ? e.message : '동기화 실패')
-    } finally {
       setSyncing(false)
     }
   }
