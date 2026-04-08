@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
-import { Search, UserPlus, Shield, User, Users, UserMinus, Plus, RefreshCw } from 'lucide-react'
+import { Search, UserPlus, Shield, User, Users, UserMinus, Plus, RefreshCw, UserCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface MembersClientWrapperProps {
@@ -47,8 +47,23 @@ export function MembersClientWrapper({
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [candidateSearch, setCandidateSearch] = useState('')
+  const [syncing, setSyncing] = useState(false)
 
   const supabase = createClient()
+
+  const handleSyncProfiles = async () => {
+    setSyncing(true)
+    try {
+      const res = await fetch('/api/admin/sync-profiles', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      alert(`✅ ${data.synced}명 동기화 완료! 멤버 추가 목록을 다시 확인해보세요.`)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '동기화 실패')
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   const filtered = members.filter((m) => {
     const q = search.toLowerCase()
@@ -157,10 +172,16 @@ export function MembersClientWrapper({
           <p className="text-sm text-gray-500">총 {members.length}명</p>
         </div>
         {isAdmin && (
-          <Button onClick={openInvite} className="flex items-center gap-2">
-            <UserPlus className="w-4 h-4" />
-            멤버 추가
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleSyncProfiles} disabled={syncing} className="flex items-center gap-2">
+              <UserCheck className="w-4 h-4" />
+              {syncing ? '동기화 중...' : '구성원 동기화'}
+            </Button>
+            <Button onClick={openInvite} className="flex items-center gap-2">
+              <UserPlus className="w-4 h-4" />
+              멤버 추가
+            </Button>
+          </div>
         )}
       </div>
 

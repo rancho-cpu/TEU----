@@ -31,7 +31,7 @@ export function ContentsClientWrapper({
   const allItems = [
     ...localLectures.map((l) => ({ type: 'lecture' as const, item: l, date: l.start_time ?? l.created_at })),
     ...localSurveys.map((s) => ({ type: 'survey' as const, item: s, date: s.created_at })),
-  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
   const handleZoomSync = async () => {
     setSyncing(true)
@@ -73,7 +73,7 @@ export function ContentsClientWrapper({
               <TabsTrigger value="surveys">설문</TabsTrigger>
             </TabsList>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ml-6">
             {isAdmin && (
               <Button
                 variant="outline"

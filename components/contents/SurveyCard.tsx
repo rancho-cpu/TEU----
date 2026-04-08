@@ -33,7 +33,7 @@ function formatDeadline(dateStr: string | null): string {
   if (!dateStr) return '마감일 미정'
   try {
     const date = parseISO(dateStr)
-    return format(date, 'yyyy/MM/dd HH:mm까지 제출', { locale: ko })
+    return format(date, 'MM/dd HH:mm 마감', { locale: ko })
   } catch {
     return dateStr
   }
