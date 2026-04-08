@@ -62,7 +62,7 @@ export function ContentsClientWrapper({
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <Tabs defaultValue="all">
+      <Tabs defaultValue="all" className="flex-col">
         {/* Header + Tabs 한 줄 */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
