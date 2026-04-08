@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { useRouter } from 'next/navigation'
 import {
   Settings,
   Link2,
@@ -24,6 +25,7 @@ import {
   Pencil,
   Check,
   ExternalLink,
+  AlertTriangle,
 } from 'lucide-react'
 
 const PRESET_COLORS = [
@@ -46,6 +48,7 @@ export function SettingsClientWrapper({
   initialShortcuts,
 }: SettingsClientWrapperProps) {
   const supabase = createClient()
+  const router = useRouter()
 
   // Cohort info state
   const [name, setName] = useState(cohort.name)
@@ -65,6 +68,30 @@ export function SettingsClientWrapper({
   const [savingShortcut, setSavingShortcut] = useState(false)
   const [shortcutError, setShortcutError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  // 기수 삭제
+  const [deleteConfirm, setDeleteConfirm] = useState('')
+  const [deletingCohort, setDeletingCohort] = useState(false)
+
+  const handleDeleteCohort = async () => {
+    if (deleteConfirm !== cohort.name) return
+    setDeletingCohort(true)
+    const { error } = await supabase.from('cohorts').delete().eq('id', cohortId)
+    if (error) {
+      alert('삭제 중 오류가 발생했습니다.')
+      setDeletingCohort(false)
+      return
+    }
+    // 남은 기수로 이동하거나 setup으로
+    const { data: remaining } = await supabase
+      .from('cohorts').select('id').neq('id', cohortId).limit(1).single()
+    if (remaining) {
+      router.push(`/${remaining.id}/contents`)
+    } else {
+      router.push('/setup')
+    }
+    router.refresh()
+  }
 
   const handleSaveCohort = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -381,6 +408,37 @@ export function SettingsClientWrapper({
             ))}
           </div>
         )}
+      </div>
+
+      {/* Danger Zone */}
+      <div className="bg-white rounded-xl border border-red-200 p-6">
+        <h2 className="text-base font-semibold text-red-600 mb-1 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4" />
+          위험 구역
+        </h2>
+        <p className="text-sm text-gray-500 mb-5">
+          기수를 삭제하면 모든 콘텐츠, 챌린지, 설문, 커뮤니티 데이터가 영구적으로 삭제됩니다.
+        </p>
+        <div className="space-y-3">
+          <Label className="text-sm font-medium text-gray-700">
+            확인을 위해 기수 이름 <span className="font-bold text-gray-900">"{cohort.name}"</span>을 입력하세요
+          </Label>
+          <Input
+            value={deleteConfirm}
+            onChange={(e) => setDeleteConfirm(e.target.value)}
+            placeholder={cohort.name}
+            className="text-sm max-w-xs border-red-200 focus:border-red-400"
+          />
+          <Button
+            variant="outline"
+            className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+            disabled={deleteConfirm !== cohort.name || deletingCohort}
+            onClick={handleDeleteCohort}
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            {deletingCohort ? '삭제 중...' : '이 기수 영구 삭제'}
+          </Button>
+        </div>
       </div>
 
       {/* Shortcut Modal */}
