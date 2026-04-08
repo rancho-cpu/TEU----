@@ -45,7 +45,6 @@ export function ContentsClientWrapper({
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? '동기화 실패')
       setSyncMsg(`✅ ${data.synced}개 강의가 동기화되었습니다.`)
-      // Refresh lectures from the server
       const lecturesRes = await fetch(`/api/zoom/lectures?cohortId=${cohortId}`)
       if (lecturesRes.ok) {
         const { lectures: fresh } = await lecturesRes.json()
@@ -63,55 +62,49 @@ export function ContentsClientWrapper({
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">콘텐츠</h1>
-        <div className="flex items-center gap-2">
-          {isAdmin && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 text-gray-600"
-              onClick={handleZoomSync}
-              disabled={syncing}
-            >
-              <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-              {syncing ? '동기화 중...' : 'Zoom 동기화'}
-            </Button>
-          )}
-          {isAdmin && (
-            <Button
-              size="sm"
-              className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
-              onClick={() => setSurveyModalOpen(true)}
-            >
-              <Plus className="w-4 h-4" />
-              설문 추가
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Sync status message */}
-      {syncMsg && (
-        <div className="mb-4 px-4 py-2 rounded-lg bg-gray-50 border text-sm text-gray-700">
-          {syncMsg}
-        </div>
-      )}
-
-      {/* Tabs */}
       <Tabs defaultValue="all">
-        <TabsList className="mb-6 bg-gray-100">
-          <TabsTrigger value="all" className="data-[state=active]:bg-white">
-            전체
-          </TabsTrigger>
-          <TabsTrigger value="lectures" className="data-[state=active]:bg-white">
-            줌 강의실
-          </TabsTrigger>
-          <TabsTrigger value="surveys" className="data-[state=active]:bg-white">
-            만족도 조사 설문
-          </TabsTrigger>
-        </TabsList>
+        {/* Header + Tabs 한 줄 */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-gray-900">콘텐츠</h1>
+            <TabsList>
+              <TabsTrigger value="all">전체</TabsTrigger>
+              <TabsTrigger value="lectures">줌 강의</TabsTrigger>
+              <TabsTrigger value="surveys">설문</TabsTrigger>
+            </TabsList>
+          </div>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 text-gray-600"
+                onClick={handleZoomSync}
+                disabled={syncing}
+              >
+                <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? '동기화 중...' : 'Zoom 동기화'}
+              </Button>
+            )}
+            {isAdmin && (
+              <Button
+                size="sm"
+                className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+                onClick={() => setSurveyModalOpen(true)}
+              >
+                <Plus className="w-4 h-4" />
+                설문 추가
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Sync status message */}
+        {syncMsg && (
+          <div className="mb-4 px-4 py-2 rounded-lg bg-gray-50 border text-sm text-gray-700">
+            {syncMsg}
+          </div>
+        )}
 
         {/* All */}
         <TabsContent value="all">

@@ -16,7 +16,10 @@ import {
 import { format, parseISO, isPast } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import type { Survey, SurveyQuestion, SurveyResponse } from '@/types'
-import { ClipboardList, Users, Star, BarChart2, Trash2, Download } from 'lucide-react'
+import { ClipboardList, Users, Star, BarChart2, MoreVertical, Trash2, Download } from 'lucide-react'
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { createClient } from '@/lib/supabase/client'
 
 interface SurveyCardProps {
@@ -292,16 +295,27 @@ export function SurveyCard({ survey, responseCount, isAdmin, onDeleted }: Survey
   return (
     <>
       {/* Card */}
-      <div className="group relative bg-white rounded-xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-md hover:border-pink-300 transition-all duration-200">
-        {/* Admin delete button */}
+      <div className="relative bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md hover:border-pink-300 transition-all duration-200">
+        {/* Admin ⋮ menu */}
         {isAdmin && (
-          <button
-            onClick={(e) => { e.stopPropagation(); handleDelete() }}
-            disabled={deleting}
-            className="absolute top-3 right-3 z-10 p-1 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          <div className="absolute top-2 right-2 z-10" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className="h-7 w-7 inline-flex items-center justify-center rounded-full bg-white/80 hover:bg-gray-100 text-gray-500 transition-colors"
+                disabled={deleting}
+              >
+                <MoreVertical className="w-4 h-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={handleDelete}
+                  className="text-red-500 focus:text-red-500"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />삭제
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         )}
         <div className="h-1.5 bg-gradient-to-r from-pink-400 to-rose-400" />
         <div className="p-4 space-y-3">
