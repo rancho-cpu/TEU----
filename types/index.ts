@@ -91,6 +91,8 @@ export interface Post {
   created_at: string
   profile?: Profile
   comment_count?: number
+  likes_count?: number
+  user_liked?: boolean
 }
 
 export interface Comment {

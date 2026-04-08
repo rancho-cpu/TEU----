@@ -20,6 +20,7 @@ import {
   Send,
   Calendar,
   ChevronRight,
+  Heart,
 } from 'lucide-react'
 
 interface PostCardProps {
@@ -28,6 +29,7 @@ interface PostCardProps {
   cohortId: string
   currentUserId: string
   onDeleted: (postId: string) => void
+  onLikeToggled?: (postId: string, liked: boolean, newCount: number) => void
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -74,6 +76,7 @@ export function PostCard({
   cohortId,
   currentUserId,
   onDeleted,
+  onLikeToggled,
 }: PostCardProps) {
   const [open, setOpen] = useState(false)
   const [comments, setComments] = useState<Comment[]>([])
@@ -81,9 +84,33 @@ export function PostCard({
   const [loadingComments, setLoadingComments] = useState(false)
   const [submittingComment, setSubmittingComment] = useState(false)
   const [deletingPost, setDeletingPost] = useState(false)
+  const [liked, setLiked] = useState(post.user_liked ?? false)
+  const [likeCount, setLikeCount] = useState(post.likes_count ?? 0)
+  const [likePending, setLikePending] = useState(false)
   const supabase = createClient()
 
   const canDelete = isAdmin || post.user_id === currentUserId
+
+  const handleLikeToggle = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (likePending) return
+    setLikePending(true)
+
+    const newLiked = !liked
+    const newCount = newLiked ? likeCount + 1 : likeCount - 1
+    setLiked(newLiked)
+    setLikeCount(newCount)
+
+    if (newLiked) {
+      await supabase.from('post_likes').insert({ post_id: post.id, user_id: currentUserId })
+    } else {
+      await supabase.from('post_likes').delete()
+        .eq('post_id', post.id).eq('user_id', currentUserId)
+    }
+
+    onLikeToggled?.(post.id, newLiked, newCount)
+    setLikePending(false)
+  }
 
   const handleOpenDialog = async () => {
     setOpen(true)
@@ -182,6 +209,15 @@ export function PostCard({
                 <MessageCircle className="w-3.5 h-3.5" />
                 댓글 {post.comment_count ?? 0}
               </span>
+              <button
+                onClick={handleLikeToggle}
+                className={`flex items-center gap-1 text-xs transition-colors ${
+                  liked ? 'text-red-500' : 'text-gray-400 hover:text-red-400'
+                }`}
+              >
+                <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-red-500' : ''}`} />
+                {likeCount > 0 && likeCount}
+              </button>
               <span className="ml-auto flex items-center gap-1 text-xs text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
                 자세히 보기
                 <ChevronRight className="w-3 h-3" />
