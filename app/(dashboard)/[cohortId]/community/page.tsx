@@ -18,7 +18,7 @@ export default async function CommunityPage({
     supabase.from('profiles').select('*').eq('id', user.id).single(),
     supabase
       .from('posts')
-      .select('*, profile:profiles(*)')
+      .select('*, profile:profiles!user_id(*)')
       .eq('cohort_id', cohortId)
       .order('created_at', { ascending: false }),
   ])

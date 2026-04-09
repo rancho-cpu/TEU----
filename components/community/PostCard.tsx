@@ -103,7 +103,7 @@ export function PostCard({
     setLoadingComments(true)
     const { data } = await supabase
       .from('comments')
-      .select('*, profile:profiles(*)')
+      .select('*, profile:profiles!user_id(*)')
       .eq('post_id', post.id)
       .order('created_at', { ascending: true })
     setComments((data as Comment[]) ?? [])
@@ -116,7 +116,7 @@ export function PostCard({
     const { data, error } = await supabase
       .from('comments')
       .insert({ post_id: post.id, user_id: currentUserId, content: commentText.trim() })
-      .select('*, profile:profiles(*)')
+      .select('*, profile:profiles!user_id(*)')
       .single()
     if (!error && data) {
       setComments((prev) => [...prev, data as Comment])

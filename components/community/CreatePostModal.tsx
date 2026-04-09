@@ -70,7 +70,7 @@ export function CreatePostModal({ cohortId, open, onClose, onCreated }: CreatePo
         category,
         content: content.trim(),
       })
-      .select('*, profile:profiles(*)')
+      .select('*, profile:profiles!user_id(*)')
       .single()
 
     if (insertError) {
