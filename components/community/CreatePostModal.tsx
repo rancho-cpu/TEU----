@@ -74,7 +74,7 @@ export function CreatePostModal({ cohortId, open, onClose, onCreated }: CreatePo
       .single()
 
     if (insertError) {
-      setError('게시글 작성 중 오류가 발생했습니다.')
+      setError(insertError.message || '게시글 작성 중 오류가 발생했습니다.')
       setLoading(false)
       return
     }
