@@ -14,6 +14,13 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   MessageCircle,
   Trash2,
   Send,
@@ -22,6 +29,9 @@ import {
   Heart,
   Star,
   HandMetal,
+  Pin,
+  PinOff,
+  MoreHorizontal,
 } from 'lucide-react'
 
 interface PostCardProps {
@@ -37,6 +47,7 @@ interface PostCardProps {
     active: boolean,
     newCount: number
   ) => void
+  onUpdated?: (postId: string, updates: Partial<Post>) => void
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -76,6 +87,7 @@ export function PostCard({
   onDeleted,
   onLikeToggled,
   onReactionToggled,
+  onUpdated,
 }: PostCardProps) {
   const [open, setOpen] = useState(false)
   const [comments, setComments] = useState<Comment[]>([])
@@ -96,6 +108,16 @@ export function PostCard({
 
   const supabase = createClient()
   const canDelete = isAdmin || post.user_id === currentUserId
+
+  const handleTogglePin = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const newPinned = !post.is_pinned
+    const { error } = await supabase
+      .from('posts')
+      .update({ is_pinned: newPinned })
+      .eq('id', post.id)
+    if (!error) onUpdated?.(post.id, { is_pinned: newPinned })
+  }
 
   // ── Dialog ──────────────────────────────────────────────────
   const handleOpenDialog = async () => {
@@ -211,6 +233,11 @@ export function PostCard({
                 {post.profile?.name ?? '알 수 없음'}
               </span>
               <span className="text-xs text-gray-400">{formatDate(post.created_at)}</span>
+              {post.is_pinned && (
+                <span className="flex items-center gap-0.5 text-xs bg-red-500 text-white px-1.5 py-0.5 rounded font-medium">
+                  <Pin className="w-2.5 h-2.5" />고정
+                </span>
+              )}
               <span
                 className={`ml-auto text-xs font-medium px-2 py-0.5 rounded-full ${
                   CATEGORY_COLORS[post.category] ?? 'bg-gray-100 text-gray-600'
@@ -267,10 +294,35 @@ export function PostCard({
                 {clapCount > 0 && clapCount}
               </button>
 
-              <span className="ml-auto flex items-center gap-1 text-xs text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                자세히 보기
-                <ChevronRight className="w-3 h-3" />
-              </span>
+              {isAdmin ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    className="ml-auto flex items-center justify-center w-6 h-6 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreHorizontal className="w-3.5 h-3.5" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-36">
+                    <DropdownMenuItem onClick={handleTogglePin} className="gap-2 text-sm cursor-pointer">
+                      {post.is_pinned
+                        ? <><PinOff className="w-3.5 h-3.5" /> 고정 해제</>
+                        : <><Pin className="w-3.5 h-3.5" /> 상단 고정</>}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={(e) => { e.stopPropagation(); handleDeletePost() }}
+                      className="gap-2 text-sm text-red-500 focus:text-red-500 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> 삭제
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <span className="ml-auto flex items-center gap-1 text-xs text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                  자세히 보기
+                  <ChevronRight className="w-3 h-3" />
+                </span>
+              )}
             </div>
           </div>
         </div>

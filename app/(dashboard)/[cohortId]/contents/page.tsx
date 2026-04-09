@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import type { ZoomLecture, Survey, Profile, ContentFolder } from '@/types'
+import type { ZoomLecture, Survey, Profile } from '@/types'
 import { ContentsClientWrapper } from '@/components/contents/ContentsClientWrapper'
 
 export default async function ContentsPage({
@@ -16,34 +16,24 @@ export default async function ContentsPage({
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [
-    { data: profileData },
-    { data: lecturesData },
-    { data: surveysData },
-    { data: foldersData },
-  ] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', user.id).single(),
-    supabase
-      .from('zoom_lectures')
-      .select('*')
-      .eq('cohort_id', cohortId)
-      .order('start_time', { ascending: false }),
-    supabase
-      .from('surveys')
-      .select('*')
-      .eq('cohort_id', cohortId)
-      .order('created_at', { ascending: false }),
-    supabase
-      .from('content_folders')
-      .select('*')
-      .eq('cohort_id', cohortId)
-      .order('order_index', { ascending: true }),
-  ])
+  const [{ data: profileData }, { data: lecturesData }, { data: surveysData }] =
+    await Promise.all([
+      supabase.from('profiles').select('*').eq('id', user.id).single(),
+      supabase
+        .from('zoom_lectures')
+        .select('*')
+        .eq('cohort_id', cohortId)
+        .order('start_time', { ascending: false }),
+      supabase
+        .from('surveys')
+        .select('*')
+        .eq('cohort_id', cohortId)
+        .order('created_at', { ascending: false }),
+    ])
 
   const profile = profileData as Profile | null
   const lectures = (lecturesData ?? []) as ZoomLecture[]
   const surveys = (surveysData ?? []) as Survey[]
-  const folders = (foldersData ?? []) as ContentFolder[]
   const isAdmin = profile?.role === 'admin'
 
   return (
@@ -51,7 +41,6 @@ export default async function ContentsPage({
       cohortId={cohortId}
       lectures={lectures}
       surveys={surveys}
-      folders={folders}
       isAdmin={isAdmin}
     />
   )

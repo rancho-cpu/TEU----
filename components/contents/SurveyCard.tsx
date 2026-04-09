@@ -387,7 +387,7 @@ export function SurveyCard({ survey, responseCount, isAdmin, onDeleted }: Survey
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-gray-900">{survey.title}</DialogTitle>
             {survey.description && (
-              <p className="text-sm text-gray-500 mt-1">{survey.description}</p>
+              <p className="text-sm text-gray-500 mt-1 whitespace-pre-wrap">{survey.description}</p>
             )}
           </DialogHeader>
 

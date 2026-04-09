@@ -6,7 +6,7 @@ import { PostCard } from './PostCard'
 import { CreatePostModal } from './CreatePostModal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { PenLine, Search } from 'lucide-react'
+import { PenLine, Search, Pin } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const CATEGORIES = ['전체', '일반', '공지', '질문', '자료'] as const
@@ -48,6 +48,8 @@ export function CommunityClientWrapper({
 
   const handlePostCreated = (newPost: Post) => setPosts((prev) => [newPost, ...prev])
   const handlePostDeleted = (postId: string) => setPosts((prev) => prev.filter((p) => p.id !== postId))
+  const handlePostUpdated = (postId: string, updates: Partial<Post>) =>
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, ...updates } : p)))
 
   const handleLikeToggled = (postId: string, liked: boolean, newCount: number) => {
     setPosts((prev) =>
@@ -73,7 +75,10 @@ export function CommunityClientWrapper({
     )
   }
 
+  const pinnedPosts = posts.filter((p) => p.is_pinned)
+
   const filtered = posts.filter((p) => {
+    if (p.is_pinned) return false
     const matchCategory = selectedCategory === '전체' || p.category === selectedCategory
     const q = searchQuery.trim().toLowerCase()
     const matchSearch = !q || p.title.toLowerCase().includes(q) || p.content.toLowerCase().includes(q)
@@ -121,6 +126,31 @@ export function CommunityClientWrapper({
         </div>
       </div>
 
+      {/* 고정글 섹션 */}
+      {pinnedPosts.length > 0 && (
+        <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 mb-5">
+          <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+            <Pin className="w-3.5 h-3.5 text-red-500" />
+            고정글
+          </h3>
+          <div className="space-y-2">
+            {pinnedPosts.map((p) => (
+              <PostCard
+                key={p.id}
+                post={p}
+                isAdmin={isAdmin}
+                cohortId={cohortId}
+                currentUserId={currentUserId}
+                onDeleted={handlePostDeleted}
+                onLikeToggled={handleLikeToggled}
+                onReactionToggled={handleReactionToggled}
+                onUpdated={handlePostUpdated}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Posts */}
       {filtered.length === 0 ? (
         <div className="text-center py-20 text-gray-400">
@@ -146,6 +176,7 @@ export function CommunityClientWrapper({
               onDeleted={handlePostDeleted}
               onLikeToggled={handleLikeToggled}
               onReactionToggled={handleReactionToggled}
+              onUpdated={handlePostUpdated}
             />
           ))}
         </div>
