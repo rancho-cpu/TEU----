@@ -85,19 +85,41 @@ export function CreatePostModal({
       return
     }
 
-    const { data, error: insertError } = await supabase
+    // 기본 insert (migration 003 컬럼 없어도 동작)
+    const basePayload: Record<string, unknown> = {
+      cohort_id: cohortId,
+      user_id: user.id,
+      title: title.trim(),
+      category,
+      content: content.trim(),
+    }
+
+    // migration 003이 적용된 경우 추가 필드 포함
+    if (postType !== 'general') basePayload.type = postType
+    if (channelId) basePayload.channel_id = channelId
+
+    let insertResult = await supabase
       .from('posts')
-      .insert({
-        cohort_id: cohortId,
-        user_id: user.id,
-        title: title.trim(),
-        category,
-        type: postType,
-        channel_id: channelId || null,
-        content: content.trim(),
-      })
+      .insert(basePayload)
       .select('*, profile:profiles(*)')
       .single()
+
+    // 새 컬럼이 없는 경우(migration 미적용) 기본 필드만으로 재시도
+    if (insertResult.error && (insertResult.error.message?.includes('channel_id') || insertResult.error.message?.includes('type'))) {
+      insertResult = await supabase
+        .from('posts')
+        .insert({
+          cohort_id: cohortId,
+          user_id: user.id,
+          title: title.trim(),
+          category,
+          content: content.trim(),
+        })
+        .select('*, profile:profiles(*)')
+        .single()
+    }
+
+    const { data, error: insertError } = insertResult
 
     if (insertError) {
       setError('게시글 작성 중 오류가 발생했습니다.')
