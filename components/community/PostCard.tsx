@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { Post, Comment, Channel } from '@/types'
+import type { Post, Comment } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -11,13 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -29,11 +22,6 @@ import {
   Heart,
   Star,
   HandMetal,
-  Pin,
-  PinOff,
-  Hash,
-  Megaphone,
-  MoreHorizontal,
 } from 'lucide-react'
 
 interface PostCardProps {
@@ -41,7 +29,6 @@ interface PostCardProps {
   isAdmin: boolean
   cohortId: string
   currentUserId: string
-  channels?: Channel[]
   onDeleted: (postId: string) => void
   onLikeToggled?: (postId: string, liked: boolean, newCount: number) => void
   onReactionToggled?: (
@@ -50,7 +37,6 @@ interface PostCardProps {
     active: boolean,
     newCount: number
   ) => void
-  onUpdated?: (postId: string, updates: Partial<Post>) => void
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -87,11 +73,9 @@ export function PostCard({
   isAdmin,
   cohortId,
   currentUserId,
-  channels = [],
   onDeleted,
   onLikeToggled,
   onReactionToggled,
-  onUpdated,
 }: PostCardProps) {
   const [open, setOpen] = useState(false)
   const [comments, setComments] = useState<Comment[]>([])
@@ -100,12 +84,10 @@ export function PostCard({
   const [submittingComment, setSubmittingComment] = useState(false)
   const [deletingPost, setDeletingPost] = useState(false)
 
-  // Like state
   const [liked, setLiked] = useState(post.user_liked ?? false)
   const [likeCount, setLikeCount] = useState(post.likes_count ?? 0)
   const [likePending, setLikePending] = useState(false)
 
-  // Reaction state
   const [starred, setStarred] = useState(post.user_starred ?? false)
   const [starCount, setStarCount] = useState(post.star_count ?? 0)
   const [clapped, setClapped] = useState(post.user_clapped ?? false)
@@ -114,7 +96,6 @@ export function PostCard({
 
   const supabase = createClient()
   const canDelete = isAdmin || post.user_id === currentUserId
-  const channel = channels.find((c) => c.id === post.channel_id)
 
   // ── Dialog ──────────────────────────────────────────────────
   const handleOpenDialog = async () => {
@@ -208,27 +189,6 @@ export function PostCard({
     setReactionPending(null)
   }
 
-  // ── Admin actions ────────────────────────────────────────────
-  const handleTogglePin = async (e: React.MouseEvent) => {
-    e.stopPropagation()
-    const newPinned = !post.is_pinned
-    const { error } = await supabase
-      .from('posts')
-      .update({ is_pinned: newPinned })
-      .eq('id', post.id)
-    if (!error) onUpdated?.(post.id, { is_pinned: newPinned })
-  }
-
-  const handleToggleNotice = async (e: React.MouseEvent) => {
-    e.stopPropagation()
-    const newType = post.type === 'notice' ? 'general' : 'notice'
-    const { error } = await supabase
-      .from('posts')
-      .update({ type: newType })
-      .eq('id', post.id)
-    if (!error) onUpdated?.(post.id, { type: newType })
-  }
-
   return (
     <>
       {/* Card */}
@@ -245,30 +205,12 @@ export function PostCard({
           </Avatar>
 
           <div className="flex-1 min-w-0">
-            {/* Meta row */}
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
+            {/* Meta */}
+            <div className="flex items-center gap-2 mb-1">
               <span className="text-sm font-medium text-gray-800">
                 {post.profile?.name ?? '알 수 없음'}
               </span>
               <span className="text-xs text-gray-400">{formatDate(post.created_at)}</span>
-
-              {/* Post type badge */}
-              {post.type === 'notice' && (
-                <span className="flex items-center gap-0.5 text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-medium">
-                  <Megaphone className="w-3 h-3" />
-                  공지
-                </span>
-              )}
-
-              {/* Pinned badge */}
-              {post.is_pinned && (
-                <span className="flex items-center gap-0.5 text-xs bg-red-500 text-white px-1.5 py-0.5 rounded font-medium">
-                  <Pin className="w-3 h-3" />
-                  고정
-                </span>
-              )}
-
-              {/* Category badge */}
               <span
                 className={`ml-auto text-xs font-medium px-2 py-0.5 rounded-full ${
                   CATEGORY_COLORS[post.category] ?? 'bg-gray-100 text-gray-600'
@@ -288,25 +230,13 @@ export function PostCard({
               {post.content}
             </p>
 
-            {/* Channel tag */}
-            {channel && (
-              <div className="flex items-center gap-1 mt-2">
-                <span className="flex items-center gap-0.5 text-xs text-blue-500">
-                  <Hash className="w-3 h-3" />
-                  {channel.name}
-                </span>
-              </div>
-            )}
-
             {/* Footer */}
             <div className="flex items-center gap-3 mt-3">
-              {/* Comment count */}
               <span className="flex items-center gap-1 text-xs text-gray-400">
                 <MessageCircle className="w-3.5 h-3.5" />
                 {post.comment_count ?? 0}
               </span>
 
-              {/* Like */}
               <button
                 onClick={handleLikeToggle}
                 className={`flex items-center gap-1 text-xs transition-colors ${
@@ -317,7 +247,6 @@ export function PostCard({
                 {likeCount > 0 && likeCount}
               </button>
 
-              {/* Star (관심있어요) */}
               <button
                 onClick={(e) => handleReaction(e, 'star')}
                 className={`flex items-center gap-1 text-xs transition-colors ${
@@ -328,7 +257,6 @@ export function PostCard({
                 {starCount > 0 && starCount}
               </button>
 
-              {/* Clap (짝짝) */}
               <button
                 onClick={(e) => handleReaction(e, 'clap')}
                 className={`flex items-center gap-1 text-xs transition-colors ${
@@ -339,51 +267,10 @@ export function PostCard({
                 {clapCount > 0 && clapCount}
               </button>
 
-              {/* Admin dropdown */}
-              {isAdmin && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    className="ml-auto flex items-center justify-center w-6 h-6 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <MoreHorizontal className="w-3.5 h-3.5" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-40">
-                    <DropdownMenuItem
-                      onClick={handleTogglePin}
-                      className="gap-2 text-sm cursor-pointer"
-                    >
-                      {post.is_pinned ? (
-                        <><PinOff className="w-3.5 h-3.5" /> 고정 해제</>
-                      ) : (
-                        <><Pin className="w-3.5 h-3.5" /> 상단 고정</>
-                      )}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={handleToggleNotice}
-                      className="gap-2 text-sm cursor-pointer"
-                    >
-                      <Megaphone className="w-3.5 h-3.5" />
-                      {post.type === 'notice' ? '공지 해제' : '공지로 설정'}
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={(e) => { e.stopPropagation(); handleDeletePost() }}
-                      className="gap-2 text-sm text-red-500 focus:text-red-500 cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      삭제
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-
-              {!isAdmin && (
-                <span className="ml-auto flex items-center gap-1 text-xs text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                  자세히 보기
-                  <ChevronRight className="w-3 h-3" />
-                </span>
-              )}
+              <span className="ml-auto flex items-center gap-1 text-xs text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                자세히 보기
+                <ChevronRight className="w-3 h-3" />
+              </span>
             </div>
           </div>
         </div>
@@ -394,37 +281,13 @@ export function PostCard({
         <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0">
           <DialogHeader className="px-6 pt-6 pb-4">
             <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Category */}
-                <span
-                  className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                    CATEGORY_COLORS[post.category] ?? 'bg-gray-100 text-gray-600'
-                  }`}
-                >
-                  {post.category}
-                </span>
-                {/* Post type */}
-                {post.type === 'notice' && (
-                  <span className="flex items-center gap-0.5 text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-medium">
-                    <Megaphone className="w-3 h-3" />
-                    공지
-                  </span>
-                )}
-                {/* Pinned */}
-                {post.is_pinned && (
-                  <span className="flex items-center gap-0.5 text-xs bg-red-500 text-white px-1.5 py-0.5 rounded font-medium">
-                    <Pin className="w-3 h-3" />
-                    고정
-                  </span>
-                )}
-                {/* Channel */}
-                {channel && (
-                  <span className="flex items-center gap-0.5 text-xs text-blue-500">
-                    <Hash className="w-3 h-3" />
-                    {channel.name}
-                  </span>
-                )}
-              </div>
+              <span
+                className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                  CATEGORY_COLORS[post.category] ?? 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                {post.category}
+              </span>
               {canDelete && (
                 <Button
                   variant="ghost"
@@ -467,10 +330,10 @@ export function PostCard({
               {post.content}
             </div>
 
-            {/* Reactions in dialog */}
-            <div className="flex items-center gap-3 pb-2 border-b border-gray-100">
+            {/* Reactions */}
+            <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
               <button
-                onClick={(e) => handleLikeToggle(e)}
+                onClick={handleLikeToggle}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                   liked
                     ? 'border-red-200 bg-red-50 text-red-500'
@@ -539,9 +402,7 @@ export function PostCard({
                             {formatTime(comment.created_at)}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-700 leading-relaxed">
-                          {comment.content}
-                        </p>
+                        <p className="text-sm text-gray-700 leading-relaxed">{comment.content}</p>
                       </div>
                     </div>
                   ))}
@@ -559,9 +420,7 @@ export function PostCard({
                 onChange={(e) => setCommentText(e.target.value)}
                 className="flex-1 min-h-[60px] max-h-[120px] resize-none text-sm bg-white"
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                    handleSubmitComment()
-                  }
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSubmitComment()
                 }}
               />
               <Button
