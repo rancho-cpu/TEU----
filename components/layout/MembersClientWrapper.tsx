@@ -40,6 +40,8 @@ export function MembersClientWrapper({
 }: MembersClientWrapperProps) {
   const [members, setMembers] = useState<CohortMember[]>(initialMembers)
   const [search, setSearch] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [notYetAdded, setNotYetAdded] = useState<Profile[]>([])
   const [loadingCandidates, setLoadingCandidates] = useState(false)
@@ -73,6 +75,26 @@ export function MembersClientWrapper({
       m.profile?.email?.toLowerCase().includes(q)
     )
   })
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const safePage = Math.min(currentPage, totalPages)
+  const paginated = filtered.slice((safePage - 1) * pageSize, safePage * pageSize)
+
+  // 검색어 변경 시 첫 페이지로 리셋
+  const handleSearchChange = (v: string) => {
+    setSearch(v)
+    setCurrentPage(1)
+  }
+
+  const getPageNumbers = (total: number, current: number): (number | '...')[] => {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+    const pages: (number | '...')[] = [1]
+    if (current > 3) pages.push('...')
+    for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) pages.push(i)
+    if (current < total - 2) pages.push('...')
+    pages.push(total)
+    return pages
+  }
 
   // ── 멤버 초대 다이얼로그 열기 ───────────────────────────
   const openInvite = async () => {
@@ -192,7 +214,7 @@ export function MembersClientWrapper({
         <Input
           placeholder="이름 또는 이메일로 검색..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => handleSearchChange(e.target.value)}
           className="pl-9 text-sm"
         />
       </div>
@@ -212,7 +234,7 @@ export function MembersClientWrapper({
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {filtered.map((member) => (
+            {paginated.map((member) => (
               <div
                 key={member.user_id}
                 className="grid grid-cols-12 gap-4 px-5 py-4 items-center hover:bg-gray-50 transition-colors"
@@ -284,6 +306,82 @@ export function MembersClientWrapper({
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {filtered.length > 0 && (
+        <div className="flex items-center justify-between mt-4 px-1">
+          {/* 페이지당 표시 수 */}
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <span>페이지당</span>
+            <select
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
+              className="border border-gray-200 rounded-md px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            >
+              {[10, 20, 50].map((n) => <option key={n} value={n}>{n}개</option>)}
+            </select>
+            <span className="text-gray-400">· 총 {filtered.length}명</span>
+          </div>
+
+          {/* 페이지 버튼 */}
+          <div className="flex items-center gap-1">
+            {/* « 처음 */}
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={safePage === 1}
+              className="w-8 h-8 flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-sm"
+            >
+              «
+            </button>
+            {/* ‹ 이전 */}
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={safePage === 1}
+              className="w-8 h-8 flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-sm"
+            >
+              ‹
+            </button>
+
+            {/* 페이지 번호 */}
+            {getPageNumbers(totalPages, safePage).map((p, i) =>
+              p === '...' ? (
+                <span key={`dots-${i}`} className="w-8 h-8 flex items-center justify-center text-gray-400 text-sm">
+                  …
+                </span>
+              ) : (
+                <button
+                  key={p}
+                  onClick={() => setCurrentPage(p as number)}
+                  className={`w-8 h-8 flex items-center justify-center rounded-md text-sm font-medium transition-colors ${
+                    safePage === p
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  {p}
+                </button>
+              )
+            )}
+
+            {/* › 다음 */}
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage === totalPages}
+              className="w-8 h-8 flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-sm"
+            >
+              ›
+            </button>
+            {/* » 마지막 */}
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={safePage === totalPages}
+              className="w-8 h-8 flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-sm"
+            >
+              »
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 멤버 추가 Dialog */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
