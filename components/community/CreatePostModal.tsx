@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { Post } from '@/types'
+import type { Post, Channel } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import {
   Dialog,
@@ -13,12 +13,16 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Hash } from 'lucide-react'
 
 interface CreatePostModalProps {
   cohortId: string
+  channels?: Channel[]
+  defaultChannelId?: string | null
   open: boolean
   onClose: () => void
   onCreated: (post: Post) => void
+  isAdmin?: boolean
 }
 
 const CATEGORIES = [
@@ -28,14 +32,24 @@ const CATEGORIES = [
   { value: '자료', label: '자료', color: 'bg-green-100 text-green-700' },
 ]
 
+const POST_TYPES = [
+  { value: 'general', label: '일반 게시글' },
+  { value: 'notice', label: '공지' },
+]
+
 export function CreatePostModal({
   cohortId,
+  channels = [],
+  defaultChannelId = null,
   open,
   onClose,
   onCreated,
+  isAdmin = false,
 }: CreatePostModalProps) {
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState('일반')
+  const [postType, setPostType] = useState<'general' | 'notice'>('general')
+  const [channelId, setChannelId] = useState<string | null>(defaultChannelId)
   const [content, setContent] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -44,6 +58,8 @@ export function CreatePostModal({
   const handleClose = () => {
     setTitle('')
     setCategory('일반')
+    setPostType('general')
+    setChannelId(defaultChannelId)
     setContent('')
     setError(null)
     onClose()
@@ -76,6 +92,8 @@ export function CreatePostModal({
         user_id: user.id,
         title: title.trim(),
         category,
+        type: postType,
+        channel_id: channelId || null,
         content: content.trim(),
       })
       .select('*, profile:profiles(*)')
@@ -87,7 +105,7 @@ export function CreatePostModal({
       return
     }
 
-    onCreated({ ...(data as Post), comment_count: 0 })
+    onCreated({ ...(data as Post), comment_count: 0, likes_count: 0, star_count: 0, clap_count: 0 })
     handleClose()
     setLoading(false)
   }
@@ -99,7 +117,66 @@ export function CreatePostModal({
           <DialogTitle className="text-lg font-bold">새 게시글 작성</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-5 mt-2">
+        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+          {/* Channel selection */}
+          {channels.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">채널</Label>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setChannelId(null)}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border-2 transition-all ${
+                    !channelId
+                      ? 'bg-gray-900 text-white border-gray-900'
+                      : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <Hash className="w-3 h-3" />
+                  전체
+                </button>
+                {channels.map((ch) => (
+                  <button
+                    key={ch.id}
+                    type="button"
+                    onClick={() => setChannelId(ch.id)}
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border-2 transition-all ${
+                      channelId === ch.id
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <Hash className="w-3 h-3" />
+                    {ch.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Post type (admin only) */}
+          {isAdmin && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">게시글 유형</Label>
+              <div className="flex gap-2">
+                {POST_TYPES.map((pt) => (
+                  <button
+                    key={pt.value}
+                    type="button"
+                    onClick={() => setPostType(pt.value as 'general' | 'notice')}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border-2 transition-all ${
+                      postType === pt.value
+                        ? 'bg-gray-900 text-white border-gray-900'
+                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    {pt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Category */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-gray-700">카테고리</Label>
@@ -146,14 +223,12 @@ export function CreatePostModal({
               placeholder="내용을 자유롭게 작성하세요..."
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              className="min-h-[160px] resize-none text-sm leading-relaxed"
+              className="min-h-[140px] resize-none text-sm leading-relaxed"
             />
           </div>
 
           {error && (
-            <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">
-              {error}
-            </p>
+            <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
           )}
 
           <div className="flex gap-2 justify-end pt-1">

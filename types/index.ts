@@ -24,6 +24,23 @@ export interface CohortMember {
   profile?: Profile
 }
 
+export interface Channel {
+  id: string
+  cohort_id: string
+  name: string
+  description: string | null
+  order_index: number
+  created_at: string
+}
+
+export interface ContentFolder {
+  id: string
+  cohort_id: string
+  name: string
+  order_index: number
+  created_at: string
+}
+
 export interface ZoomLecture {
   id: string
   cohort_id: string
@@ -32,6 +49,7 @@ export interface ZoomLecture {
   recording_url: string | null
   start_time: string | null
   duration: number | null
+  folder_id?: string | null
   created_at: string
 }
 
@@ -47,6 +65,7 @@ export interface Survey {
   description: string | null
   questions: SurveyQuestion[]
   deadline: string | null
+  folder_id?: string | null
   created_at: string
 }
 
@@ -88,11 +107,18 @@ export interface Post {
   title: string
   content: string
   category: string
+  channel_id?: string | null
+  is_pinned?: boolean
+  type?: 'general' | 'notice'
   created_at: string
   profile?: Profile
   comment_count?: number
   likes_count?: number
   user_liked?: boolean
+  star_count?: number
+  clap_count?: number
+  user_starred?: boolean
+  user_clapped?: boolean
 }
 
 export interface Comment {

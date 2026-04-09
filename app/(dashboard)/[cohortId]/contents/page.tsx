@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import type { ZoomLecture, Survey, Profile } from '@/types'
+import type { ZoomLecture, Survey, Profile, ContentFolder } from '@/types'
 import { ContentsClientWrapper } from '@/components/contents/ContentsClientWrapper'
 
 export default async function ContentsPage({
@@ -20,6 +20,7 @@ export default async function ContentsPage({
     { data: profileData },
     { data: lecturesData },
     { data: surveysData },
+    { data: foldersData },
   ] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).single(),
     supabase
@@ -32,11 +33,17 @@ export default async function ContentsPage({
       .select('*')
       .eq('cohort_id', cohortId)
       .order('created_at', { ascending: false }),
+    supabase
+      .from('content_folders')
+      .select('*')
+      .eq('cohort_id', cohortId)
+      .order('order_index', { ascending: true }),
   ])
 
   const profile = profileData as Profile | null
   const lectures = (lecturesData ?? []) as ZoomLecture[]
   const surveys = (surveysData ?? []) as Survey[]
+  const folders = (foldersData ?? []) as ContentFolder[]
   const isAdmin = profile?.role === 'admin'
 
   return (
@@ -44,6 +51,7 @@ export default async function ContentsPage({
       cohortId={cohortId}
       lectures={lectures}
       surveys={surveys}
+      folders={folders}
       isAdmin={isAdmin}
     />
   )
