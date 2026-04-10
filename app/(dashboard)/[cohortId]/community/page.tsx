@@ -81,7 +81,7 @@ export default async function CommunityPage({
   }))
 
   const members = (membersData ?? [])
-    .map((m) => m.profile as { id: string; name: string; email: string } | null)
+    .map((m) => (m.profile as unknown) as { id: string; name: string; email: string } | null)
     .filter((p): p is { id: string; name: string; email: string } => !!p)
 
   return (
