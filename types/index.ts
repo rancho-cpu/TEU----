@@ -130,10 +130,22 @@ export interface Comment {
   profile?: Profile
 }
 
+export interface PhotoAlbum {
+  id: string
+  cohort_id: string
+  name: string
+  description: string | null
+  cover_path: string | null
+  order_index: number
+  created_at: string
+  photo_count?: number
+}
+
 export interface Photo {
   id: string
   cohort_id: string
   user_id: string
+  album_id: string | null
   storage_path: string
   caption: string | null
   created_at: string
