@@ -26,6 +26,8 @@ import {
   Check,
   ExternalLink,
   AlertTriangle,
+  MessageCircle,
+  Radio,
 } from 'lucide-react'
 
 const PRESET_COLORS = [
@@ -68,6 +70,29 @@ export function SettingsClientWrapper({
   const [savingShortcut, setSavingShortcut] = useState(false)
   const [shortcutError, setShortcutError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  // 외부 링크
+  const [slidoUrl, setSlidoUrl] = useState(cohort.slido_url ?? '')
+  const [kakaoUrl, setKakaoUrl] = useState(cohort.kakao_url ?? '')
+  const [savingLinks, setSavingLinks] = useState(false)
+  const [linksSaved, setLinksSaved] = useState(false)
+
+  const handleSaveLinks = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSavingLinks(true)
+    const { error } = await supabase
+      .from('cohorts')
+      .update({
+        slido_url: slidoUrl.trim() || null,
+        kakao_url: kakaoUrl.trim() || null,
+      })
+      .eq('id', cohortId)
+    if (!error) {
+      setLinksSaved(true)
+      setTimeout(() => setLinksSaved(false), 2000)
+    }
+    setSavingLinks(false)
+  }
 
   // 기수 삭제
   const [deleteConfirm, setDeleteConfirm] = useState('')
@@ -309,6 +334,60 @@ export function SettingsClientWrapper({
                 </span>
               ) : (
                 '변경사항 저장'
+              )}
+            </Button>
+          </div>
+        </form>
+      </div>
+
+      {/* 외부 서비스 바로가기 */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 className="text-base font-semibold text-gray-900 mb-1 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-violet-500 inline-block" />
+          외부 서비스 바로가기
+        </h2>
+        <p className="text-sm text-gray-500 mb-5">URL을 입력하면 사이드바 메뉴에 바로가기 버튼이 표시됩니다.</p>
+        <form onSubmit={handleSaveLinks} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="slido-url" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+              <Radio className="w-3.5 h-3.5 text-violet-500" />
+              Slido 질문 URL
+            </Label>
+            <Input
+              id="slido-url"
+              value={slidoUrl}
+              onChange={(e) => setSlidoUrl(e.target.value)}
+              placeholder="https://app.sli.do/event/..."
+              className="text-sm"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="kakao-url" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+              <MessageCircle className="w-3.5 h-3.5 text-yellow-500" />
+              카카오톡 오픈채팅 URL
+            </Label>
+            <Input
+              id="kakao-url"
+              value={kakaoUrl}
+              onChange={(e) => setKakaoUrl(e.target.value)}
+              placeholder="https://open.kakao.com/o/..."
+              className="text-sm"
+            />
+          </div>
+          <div className="flex justify-end">
+            <Button type="submit" disabled={savingLinks} className="min-w-[100px]">
+              {savingLinks ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  저장 중...
+                </span>
+              ) : linksSaved ? (
+                <span className="flex items-center gap-1.5">
+                  <Check className="w-4 h-4" />
+                  저장됨
+                </span>
+              ) : (
+                '저장'
               )}
             </Button>
           </div>

@@ -14,6 +14,8 @@ export interface Cohort {
   name: string
   program_name: string
   description: string | null
+  slido_url: string | null
+  kakao_url: string | null
   created_at: string
 }
 
