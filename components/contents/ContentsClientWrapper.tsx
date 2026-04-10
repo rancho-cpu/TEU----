@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { RefreshCw, Plus, ChevronDown } from 'lucide-react'
+import { RefreshCw, Plus } from 'lucide-react'
 import type { ZoomLecture, Survey } from '@/types'
 import { ZoomLectureCard } from './ZoomLectureCard'
 import { SurveyCard } from './SurveyCard'
@@ -27,15 +27,6 @@ export function ContentsClientWrapper({
   const [localLectures, setLocalLectures] = useState<ZoomLecture[]>(lectures)
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
-  const [syncRange, setSyncRange] = useState<'7' | '30' | '90' | '0'>('30')
-  const [syncMenuOpen, setSyncMenuOpen] = useState(false)
-
-  const SYNC_RANGE_LABELS: Record<string, string> = {
-    '7': '7일 이내',
-    '30': '30일 이내',
-    '90': '90일 이내',
-    '0': '전체',
-  }
 
   const allItems = [
     ...localLectures.map((l) => ({ type: 'lecture' as const, item: l, date: l.start_time ?? l.created_at })),
@@ -49,7 +40,7 @@ export function ContentsClientWrapper({
       const res = await fetch('/api/zoom/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cohortId, daysAhead: Number(syncRange) }),
+        body: JSON.stringify({ cohortId }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? '동기화 실패')
@@ -83,40 +74,16 @@ export function ContentsClientWrapper({
           </div>
           <div className="flex items-center gap-2 ml-6">
             {isAdmin && (
-              <div className="relative">
-                <div className="flex items-stretch">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2 text-gray-600 rounded-r-none border-r-0"
-                    onClick={handleZoomSync}
-                    disabled={syncing}
-                  >
-                    <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-                    {syncing ? '동기화 중...' : `Zoom 동기화 (${SYNC_RANGE_LABELS[syncRange]})`}
-                  </Button>
-                  <button
-                    className="flex items-center px-2 border border-gray-200 rounded-r-md bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                    onClick={() => setSyncMenuOpen((v) => !v)}
-                    disabled={syncing}
-                  >
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                {syncMenuOpen && (
-                  <div className="absolute right-0 mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1">
-                    {(['7', '30', '90', '0'] as const).map((val) => (
-                      <button
-                        key={val}
-                        className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 ${syncRange === val ? 'text-indigo-600 font-medium' : 'text-gray-700'}`}
-                        onClick={() => { setSyncRange(val); setSyncMenuOpen(false) }}
-                      >
-                        {SYNC_RANGE_LABELS[val]}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 text-gray-600"
+                onClick={handleZoomSync}
+                disabled={syncing}
+              >
+                <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? '동기화 중...' : 'Zoom 동기화'}
+              </Button>
             )}
             {isAdmin && (
               <Button
