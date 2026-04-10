@@ -342,166 +342,95 @@ export function SettingsClientWrapper({
         </form>
       </div>
 
-      {/* 외부 서비스 바로가기 */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 className="text-base font-semibold text-gray-900 mb-1 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-violet-500 inline-block" />
-          외부 서비스 바로가기
+      {/* 바로가기 관리 (통합) */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
+        <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-indigo-500 inline-block" />
+          바로가기 관리
         </h2>
-        <p className="text-sm text-gray-500 mb-5">URL을 입력하면 사이드바 메뉴에 바로가기 버튼이 표시됩니다.</p>
-        <form onSubmit={handleSaveLinks} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="slido-url" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-              <Radio className="w-3.5 h-3.5 text-violet-500" />
-              Slido 질문 URL
-            </Label>
-            <Input
-              id="slido-url"
-              value={slidoUrl}
-              onChange={(e) => setSlidoUrl(e.target.value)}
-              placeholder="https://app.sli.do/event/..."
-              className="text-sm"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="kakao-url" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-              <MessageCircle className="w-3.5 h-3.5 text-yellow-500" />
-              카카오톡 오픈채팅 URL
-            </Label>
-            <Input
-              id="kakao-url"
-              value={kakaoUrl}
-              onChange={(e) => setKakaoUrl(e.target.value)}
-              placeholder="https://open.kakao.com/o/..."
-              className="text-sm"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="instagram-url" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-              <span className="w-3.5 h-3.5 text-pink-500 flex items-center justify-center font-bold text-xs">IG</span>
-              인스타그램 URL
-            </Label>
-            <Input
-              id="instagram-url"
-              value={instagramUrl}
-              onChange={(e) => setInstagramUrl(e.target.value)}
-              placeholder="https://instagram.com/..."
-              className="text-sm"
-            />
+
+        {/* 고정 서비스 */}
+        <form onSubmit={handleSaveLinks} className="space-y-3">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">고정 서비스</p>
+          <div className="grid grid-cols-1 gap-3">
+            <div className="flex items-center gap-3">
+              <span className="w-24 text-xs font-medium text-violet-600 flex items-center gap-1 flex-shrink-0">
+                <Radio className="w-3.5 h-3.5" /> Slido
+              </span>
+              <Input value={slidoUrl} onChange={(e) => setSlidoUrl(e.target.value)}
+                placeholder="https://app.sli.do/event/..." className="text-sm flex-1" />
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="w-24 text-xs font-medium text-yellow-600 flex items-center gap-1 flex-shrink-0">
+                <MessageCircle className="w-3.5 h-3.5" /> 카카오톡
+              </span>
+              <Input value={kakaoUrl} onChange={(e) => setKakaoUrl(e.target.value)}
+                placeholder="https://open.kakao.com/o/..." className="text-sm flex-1" />
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="w-24 text-xs font-medium text-pink-600 flex items-center gap-1 flex-shrink-0">
+                <ExternalLink className="w-3.5 h-3.5" /> 인스타그램
+              </span>
+              <Input value={instagramUrl} onChange={(e) => setInstagramUrl(e.target.value)}
+                placeholder="https://instagram.com/..." className="text-sm flex-1" />
+            </div>
           </div>
           <div className="flex justify-end">
-            <Button type="submit" disabled={savingLinks} className="min-w-[100px]">
-              {savingLinks ? (
-                <span className="flex items-center gap-2">
-                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  저장 중...
-                </span>
-              ) : linksSaved ? (
-                <span className="flex items-center gap-1.5">
-                  <Check className="w-4 h-4" />
-                  저장됨
-                </span>
-              ) : (
-                '저장'
-              )}
+            <Button type="submit" size="sm" disabled={savingLinks} className="min-w-[80px]">
+              {savingLinks ? <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                : linksSaved ? <span className="flex items-center gap-1"><Check className="w-3.5 h-3.5" />저장됨</span>
+                : '저장'}
             </Button>
           </div>
         </form>
-      </div>
 
-      {/* Shortcuts */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-            바로가기 관리
-          </h2>
-          <Button
-            size="sm"
-            onClick={openAddShortcut}
-            className="flex items-center gap-1.5"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            추가
-          </Button>
+        <div className="border-t border-gray-100" />
+
+        {/* 커스텀 바로가기 */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">커스텀 링크</p>
+            <Button size="sm" variant="outline" onClick={openAddShortcut} className="h-7 gap-1 text-xs">
+              <Plus className="w-3 h-3" /> 추가
+            </Button>
+          </div>
+          {shortcuts.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <Link2 className="w-8 h-8 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">자주 쓰는 링크를 추가해보세요.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {shortcuts.map((sc, index) => (
+                <div key={sc.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors group">
+                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: sc.color }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900">{sc.label}</p>
+                    <a href={sc.url} target="_blank" rel="noopener noreferrer"
+                      className="text-xs text-gray-400 hover:text-blue-500 truncate flex items-center gap-1 transition-colors"
+                      onClick={(e) => e.stopPropagation()}>
+                      {sc.url}<ExternalLink className="w-3 h-3 flex-shrink-0" />
+                    </a>
+                  </div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => moveShortcut(index, 'up')} disabled={index === 0}>
+                      <ChevronUp className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => moveShortcut(index, 'down')} disabled={index === shortcuts.length - 1}>
+                      <ChevronDown className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-blue-500 hover:text-blue-700" onClick={() => openEditShortcut(sc)}>
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400 hover:text-red-600" onClick={() => handleDeleteShortcut(sc.id)} disabled={deletingId === sc.id}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-
-        {shortcuts.length === 0 ? (
-          <div className="text-center py-10 text-gray-400">
-            <Link2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">아직 바로가기가 없습니다.</p>
-            <p className="text-xs mt-1">자주 쓰는 링크를 추가해보세요.</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {shortcuts.map((sc, index) => (
-              <div
-                key={sc.id}
-                className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors group"
-              >
-                {/* Color dot */}
-                <div
-                  className="w-3 h-3 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: sc.color }}
-                />
-
-                {/* Label + URL */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">{sc.label}</p>
-                  <a
-                    href={sc.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-gray-400 hover:text-blue-500 truncate flex items-center gap-1 transition-colors"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {sc.url}
-                    <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                  </a>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0"
-                    onClick={() => moveShortcut(index, 'up')}
-                    disabled={index === 0}
-                  >
-                    <ChevronUp className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0"
-                    onClick={() => moveShortcut(index, 'down')}
-                    disabled={index === shortcuts.length - 1}
-                  >
-                    <ChevronDown className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0 text-blue-500 hover:text-blue-700"
-                    onClick={() => openEditShortcut(sc)}
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0 text-red-400 hover:text-red-600"
-                    onClick={() => handleDeleteShortcut(sc.id)}
-                    disabled={deletingId === sc.id}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Danger Zone */}

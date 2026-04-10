@@ -120,9 +120,13 @@ export function Sidebar({ cohortId, cohorts, shortcuts, currentCohort }: Sidebar
           )
         })}
 
-        {/* 외부 바로가기 메뉴 (Slido / 카카오) */}
-        {externalLinks.length > 0 && (
-          <div className="pt-2 border-t border-gray-100 mt-2 space-y-1">
+      </nav>
+
+      {/* 바로가기 (고정 서비스 + 커스텀 링크 통합) */}
+      {(externalLinks.length > 0 || shortcuts.length > 0) && (
+        <div className="p-3 border-t border-gray-200">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-3">바로가기</p>
+          <div className="space-y-1">
             {externalLinks.map(({ label, url, icon: Icon, style }) => (
               <a
                 key={label}
@@ -130,24 +134,15 @@ export function Sidebar({ cohortId, cohorts, shortcuts, currentCohort }: Sidebar
                 target="_blank"
                 rel="noopener noreferrer"
                 className={cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                  'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                   style
                 )}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
-                <span className="flex-1 truncate">{label}</span>
-                <ExternalLink className="w-3 h-3 opacity-50 flex-shrink-0" />
+                <span className="truncate flex-1">{label}</span>
+                <ExternalLink className="w-3 h-3 flex-shrink-0 opacity-40" />
               </a>
             ))}
-          </div>
-        )}
-      </nav>
-
-      {/* Shortcuts */}
-      {shortcuts.length > 0 && (
-        <div className="p-3 border-t border-gray-200">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-3">바로가기</p>
-          <div className="space-y-1">
             {shortcuts.map((s) => (
               <a
                 key={s.id}
@@ -156,12 +151,9 @@ export function Sidebar({ cohortId, cohorts, shortcuts, currentCohort }: Sidebar
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
               >
-                <span
-                  className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: s.color }}
-                />
-                <span className="truncate">{s.label}</span>
-                <ExternalLink className="w-3 h-3 ml-auto flex-shrink-0 text-gray-400" />
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                <span className="truncate flex-1">{s.label}</span>
+                <ExternalLink className="w-3 h-3 flex-shrink-0 text-gray-400" />
               </a>
             ))}
           </div>
