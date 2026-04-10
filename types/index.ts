@@ -16,6 +16,7 @@ export interface Cohort {
   description: string | null
   slido_url: string | null
   kakao_url: string | null
+  instagram_url: string | null
   created_at: string
 }
 

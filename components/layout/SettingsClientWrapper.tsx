@@ -74,6 +74,7 @@ export function SettingsClientWrapper({
   // 외부 링크
   const [slidoUrl, setSlidoUrl] = useState(cohort.slido_url ?? '')
   const [kakaoUrl, setKakaoUrl] = useState(cohort.kakao_url ?? '')
+  const [instagramUrl, setInstagramUrl] = useState(cohort.instagram_url ?? '')
   const [savingLinks, setSavingLinks] = useState(false)
   const [linksSaved, setLinksSaved] = useState(false)
 
@@ -85,6 +86,7 @@ export function SettingsClientWrapper({
       .update({
         slido_url: slidoUrl.trim() || null,
         kakao_url: kakaoUrl.trim() || null,
+        instagram_url: instagramUrl.trim() || null,
       })
       .eq('id', cohortId)
     if (!error) {
@@ -371,6 +373,19 @@ export function SettingsClientWrapper({
               value={kakaoUrl}
               onChange={(e) => setKakaoUrl(e.target.value)}
               placeholder="https://open.kakao.com/o/..."
+              className="text-sm"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="instagram-url" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+              <span className="w-3.5 h-3.5 text-pink-500 flex items-center justify-center font-bold text-xs">IG</span>
+              인스타그램 URL
+            </Label>
+            <Input
+              id="instagram-url"
+              value={instagramUrl}
+              onChange={(e) => setInstagramUrl(e.target.value)}
+              placeholder="https://instagram.com/..."
               className="text-sm"
             />
           </div>
