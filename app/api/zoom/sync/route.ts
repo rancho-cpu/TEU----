@@ -4,7 +4,7 @@ import { getZoomMeetings } from '@/lib/zoom/api'
 
 export async function POST(req: NextRequest) {
   try {
-    const { cohortId } = await req.json()
+    const { cohortId, daysAhead = 30 } = await req.json()
     if (!cohortId) {
       return NextResponse.json({ error: 'cohortId required' }, { status: 400 })
     }
@@ -43,11 +43,25 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    // 이미 끝난 미팅 및 범위 초과 미팅 필터링
+    const now = new Date()
+    const cutoff = daysAhead > 0
+      ? new Date(now.getTime() + daysAhead * 86400_000)
+      : null  // 0 = 전체 (제한 없음)
+
+    const filtered = meetings.filter((m) => {
+      const start = new Date(m.start_time)
+      const end = new Date(start.getTime() + (m.duration || 60) * 60_000)
+      const notEnded = end > now
+      const withinRange = !cutoff || start <= cutoff
+      return notEnded && withinRange
+    })
+
     // DB 저장 (join_url을 recording_url 컬럼에 저장)
     const adminSupabase = await createAdminClient()
     let synced = 0
 
-    for (const meeting of meetings) {
+    for (const meeting of filtered) {
       const { error: upsertError } = await adminSupabase.from('zoom_lectures').upsert(
         {
           cohort_id: cohortId,
@@ -63,7 +77,7 @@ export async function POST(req: NextRequest) {
       if (!upsertError) synced++
     }
 
-    return NextResponse.json({ synced, total: meetings.length })
+    return NextResponse.json({ synced, total: filtered.length })
   } catch (err) {
     console.error('[zoom/sync]', err)
     return NextResponse.json(

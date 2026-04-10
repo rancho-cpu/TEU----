@@ -14,13 +14,17 @@ export default async function CommunityPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: profileData }, { data: postsData }] = await Promise.all([
+  const [{ data: profileData }, { data: postsData }, { data: membersData }] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).single(),
     supabase
       .from('posts')
       .select('*, profile:profiles!user_id(*)')
       .eq('cohort_id', cohortId)
       .order('created_at', { ascending: false }),
+    supabase
+      .from('cohort_members')
+      .select('profile:profiles!user_id(id, name, email)')
+      .eq('cohort_id', cohortId),
   ])
 
   const profile = profileData as Profile | null
@@ -76,12 +80,17 @@ export default async function CommunityPage({
     user_clapped: userClappedSet.has(p.id),
   }))
 
+  const members = (membersData ?? [])
+    .map((m) => m.profile as { id: string; name: string; email: string } | null)
+    .filter((p): p is { id: string; name: string; email: string } => !!p)
+
   return (
     <CommunityClientWrapper
       cohortId={cohortId}
       initialPosts={posts}
       isAdmin={isAdmin}
       currentUserId={user.id}
+      members={members}
     />
   )
 }

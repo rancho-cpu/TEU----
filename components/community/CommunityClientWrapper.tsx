@@ -6,7 +6,7 @@ import { PostCard } from './PostCard'
 import { CreatePostModal } from './CreatePostModal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { PenLine, Search, Pin } from 'lucide-react'
+import { PenLine, Search, Pin, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const CATEGORIES = ['전체', '일반', '공지', '질문', '자료'] as const
@@ -28,11 +28,18 @@ const CATEGORY_ACTIVE: Record<string, string> = {
   자료: 'bg-green-600 text-white',
 }
 
+interface Member {
+  id: string
+  name: string
+  email: string
+}
+
 interface CommunityClientWrapperProps {
   cohortId: string
   initialPosts: Post[]
   isAdmin: boolean
   currentUserId: string
+  members?: Member[]
 }
 
 export function CommunityClientWrapper({
@@ -40,11 +47,14 @@ export function CommunityClientWrapper({
   initialPosts,
   isAdmin,
   currentUserId,
+  members = [],
 }: CommunityClientWrapperProps) {
   const [posts, setPosts] = useState<Post[]>(initialPosts)
   const [createOpen, setCreateOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<Category>('전체')
   const [searchQuery, setSearchQuery] = useState('')
+  const [myPostsOnly, setMyPostsOnly] = useState(false)
+  const [selectedMember, setSelectedMember] = useState<string>('') // admin: filter by user_id
 
   const handlePostCreated = (newPost: Post) => setPosts((prev) => [newPost, ...prev])
   const handlePostDeleted = (postId: string) => setPosts((prev) => prev.filter((p) => p.id !== postId))
@@ -82,8 +92,16 @@ export function CommunityClientWrapper({
     const matchCategory = selectedCategory === '전체' || p.category === selectedCategory
     const q = searchQuery.trim().toLowerCase()
     const matchSearch = !q || p.title.toLowerCase().includes(q) || p.content.toLowerCase().includes(q)
-    return matchCategory && matchSearch
+    const matchMine = !myPostsOnly || p.user_id === currentUserId
+    const matchMember = !selectedMember || p.user_id === selectedMember
+    return matchCategory && matchSearch && matchMine && matchMember
   })
+
+  // 멤버별 글 수 (관리자용)
+  const postCountByMember = members.reduce<Record<string, number>>((acc, m) => {
+    acc[m.id] = posts.filter((p) => p.user_id === m.id).length
+    return acc
+  }, {})
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -99,8 +117,59 @@ export function CommunityClientWrapper({
         </Button>
       </div>
 
+      {/* 관리자 멤버별 필터 */}
+      {isAdmin && members.length > 0 && (
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-5">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <User className="w-3.5 h-3.5" />
+            멤버별 글 확인
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedMember('')}
+              className={cn(
+                'px-3 py-1.5 rounded-full text-xs font-medium transition-colors',
+                !selectedMember
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white border border-gray-200 text-gray-600 hover:border-indigo-300'
+              )}
+            >
+              전체 멤버
+            </button>
+            {members.map((m) => {
+              const count = postCountByMember[m.id] ?? 0
+              const isSelected = selectedMember === m.id
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => setSelectedMember(isSelected ? '' : m.id)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1',
+                    isSelected
+                      ? 'bg-indigo-600 text-white'
+                      : count === 0
+                      ? 'bg-white border border-gray-200 text-gray-400 hover:border-indigo-300'
+                      : 'bg-white border border-gray-200 text-gray-700 hover:border-indigo-300'
+                  )}
+                >
+                  {m.name || m.email}
+                  <span
+                    className={cn(
+                      'inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold',
+                      isSelected ? 'bg-white/30 text-white' : count === 0 ? 'bg-gray-100 text-gray-400' : 'bg-indigo-100 text-indigo-700'
+                    )}
+                  >
+                    {count}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Search + Category filter */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
@@ -126,8 +195,29 @@ export function CommunityClientWrapper({
         </div>
       </div>
 
+      {/* 내 글 필터 (일반 유저) */}
+      {!isAdmin && (
+        <div className="mb-5">
+          <button
+            onClick={() => setMyPostsOnly((v) => !v)}
+            className={cn(
+              'px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1.5',
+              myPostsOnly
+                ? 'bg-indigo-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            )}
+          >
+            <User className="w-3 h-3" />
+            내 글만 보기
+            {myPostsOnly && (
+              <span className="ml-0.5">({posts.filter((p) => p.user_id === currentUserId).length})</span>
+            )}
+          </button>
+        </div>
+      )}
+
       {/* 고정글 섹션 */}
-      {pinnedPosts.length > 0 && (
+      {pinnedPosts.length > 0 && !myPostsOnly && !selectedMember && (
         <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 mb-5">
           <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
             <Pin className="w-3.5 h-3.5 text-red-500" />
@@ -156,11 +246,11 @@ export function CommunityClientWrapper({
         <div className="text-center py-20 text-gray-400">
           <PenLine className="w-12 h-12 mx-auto mb-4 opacity-30" />
           <p className="text-lg font-medium">
-            {searchQuery || selectedCategory !== '전체'
-              ? '검색 결과가 없습니다.'
+            {searchQuery || selectedCategory !== '전체' || myPostsOnly || selectedMember
+              ? '게시글이 없습니다.'
               : '아직 게시글이 없습니다'}
           </p>
-          {!searchQuery && selectedCategory === '전체' && (
+          {!searchQuery && selectedCategory === '전체' && !myPostsOnly && !selectedMember && (
             <p className="text-sm mt-1">첫 번째 글을 작성해보세요!</p>
           )}
         </div>
