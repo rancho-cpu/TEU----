@@ -9,27 +9,25 @@ import { Input } from '@/components/ui/input'
 import { PenLine, Search, Pin, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const CATEGORIES = ['전체', '공지', '소개', '출결', '자유', '질문', '자료'] as const
+const CATEGORIES = ['전체', '공지', '소개', '출결', '자유', '질문'] as const
 type Category = typeof CATEGORIES[number]
 
 const CATEGORY_INACTIVE: Record<string, string> = {
-  전체:  'bg-gray-100 text-gray-700 hover:bg-gray-200',
-  공지:  'bg-blue-100 text-blue-700 hover:bg-blue-200',
-  소개:  'bg-purple-100 text-purple-700 hover:bg-purple-200',
-  출결:  'bg-rose-100 text-rose-700 hover:bg-rose-200',
-  자유:  'bg-gray-100 text-gray-700 hover:bg-gray-200',
-  질문:  'bg-amber-100 text-amber-700 hover:bg-amber-200',
-  자료:  'bg-green-100 text-green-700 hover:bg-green-200',
+  전체: 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+  공지: 'bg-blue-100 text-blue-700 hover:bg-blue-200',
+  소개: 'bg-purple-100 text-purple-700 hover:bg-purple-200',
+  출결: 'bg-rose-100 text-rose-700 hover:bg-rose-200',
+  자유: 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+  질문: 'bg-amber-100 text-amber-700 hover:bg-amber-200',
 }
 
 const CATEGORY_ACTIVE: Record<string, string> = {
-  전체:  'bg-gray-900 text-white',
-  공지:  'bg-blue-600 text-white',
-  소개:  'bg-purple-600 text-white',
-  출결:  'bg-rose-500 text-white',
-  자유:  'bg-gray-700 text-white',
-  질문:  'bg-amber-500 text-white',
-  자료:  'bg-green-600 text-white',
+  전체: 'bg-gray-900 text-white',
+  공지: 'bg-blue-600 text-white',
+  소개: 'bg-purple-600 text-white',
+  출결: 'bg-rose-500 text-white',
+  자유: 'bg-gray-700 text-white',
+  질문: 'bg-amber-500 text-white',
 }
 
 interface Member {

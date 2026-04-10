@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { ImagePlus, X, Loader2 } from 'lucide-react'
+import { Paperclip, X, Loader2, FileText, FileImage, FileVideo, File } from 'lucide-react'
 
 interface CreatePostModalProps {
   cohortId: string
@@ -25,19 +25,31 @@ const CATEGORIES = [
   { value: '출결', label: '출결', color: 'bg-rose-100 text-rose-700' },
   { value: '자유', label: '자유', color: 'bg-gray-100 text-gray-700' },
   { value: '질문', label: '질문', color: 'bg-amber-100 text-amber-700' },
-  { value: '자료', label: '자료', color: 'bg-green-100 text-green-700' },
 ]
 
-interface ImagePreview {
+interface FilePreview {
   file: File
-  objectUrl: string
+  objectUrl: string | null  // 이미지만 objectUrl 생성
+}
+
+function getFileIcon(type: string) {
+  if (type.startsWith('image/')) return FileImage
+  if (type.startsWith('video/')) return FileVideo
+  if (type.includes('pdf') || type.includes('word') || type.includes('text')) return FileText
+  return File
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes}B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
 }
 
 export function CreatePostModal({ cohortId, open, onClose, onCreated }: CreatePostModalProps) {
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState('자유')
   const [content, setContent] = useState('')
-  const [images, setImages] = useState<ImagePreview[]>([])
+  const [files, setFiles] = useState<FilePreview[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -47,22 +59,25 @@ export function CreatePostModal({ cohortId, open, onClose, onCreated }: CreatePo
     setTitle('')
     setCategory('자유')
     setContent('')
-    images.forEach((img) => URL.revokeObjectURL(img.objectUrl))
-    setImages([])
+    files.forEach((f) => { if (f.objectUrl) URL.revokeObjectURL(f.objectUrl) })
+    setFiles([])
     setError(null)
     onClose()
   }
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []).filter((f) => f.type.startsWith('image/'))
-    const previews: ImagePreview[] = files.map((f) => ({ file: f, objectUrl: URL.createObjectURL(f) }))
-    setImages((prev) => [...prev, ...previews].slice(0, 5)) // 최대 5장
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files ?? [])
+    const previews: FilePreview[] = selected.map((f) => ({
+      file: f,
+      objectUrl: f.type.startsWith('image/') ? URL.createObjectURL(f) : null,
+    }))
+    setFiles((prev) => [...prev, ...previews].slice(0, 10))
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  const removeImage = (idx: number) => {
-    setImages((prev) => {
-      URL.revokeObjectURL(prev[idx].objectUrl)
+  const removeFile = (idx: number) => {
+    setFiles((prev) => {
+      if (prev[idx].objectUrl) URL.revokeObjectURL(prev[idx].objectUrl!)
       return prev.filter((_, i) => i !== idx)
     })
   }
@@ -79,7 +94,6 @@ export function CreatePostModal({ cohortId, open, onClose, onCreated }: CreatePo
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setError('로그인이 필요합니다.'); setLoading(false); return }
 
-    // 1. 게시글 insert
     const { data, error: insertError } = await supabase
       .from('posts')
       .insert({ cohort_id: cohortId, user_id: user.id, title: title.trim(), category, content: content.trim() })
@@ -93,19 +107,23 @@ export function CreatePostModal({ cohortId, open, onClose, onCreated }: CreatePo
     }
 
     const post = data as Post
-
-    // 2. 이미지 업로드 & attachments insert
     const attachments: PostAttachment[] = []
     const { data: { publicUrl: baseUrl } } = supabase.storage.from('post-attachments').getPublicUrl('')
 
-    for (const img of images) {
-      const ext = img.file.name.split('.').pop() ?? 'jpg'
+    for (const fp of files) {
+      const ext = fp.file.name.split('.').pop() ?? 'bin'
       const path = `${cohortId}/${post.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-      const { error: upErr } = await supabase.storage.from('post-attachments').upload(path, img.file)
+      const { error: upErr } = await supabase.storage.from('post-attachments').upload(path, fp.file)
       if (upErr) continue
       const { data: att } = await supabase
         .from('post_attachments')
-        .insert({ post_id: post.id, storage_path: path })
+        .insert({
+          post_id: post.id,
+          storage_path: path,
+          file_name: fp.file.name,
+          file_type: fp.file.type,
+          file_size: fp.file.size,
+        })
         .select()
         .single()
       if (att) attachments.push({ ...att, public_url: `${baseUrl}${att.storage_path}` })
@@ -170,65 +188,84 @@ export function CreatePostModal({ cohortId, open, onClose, onCreated }: CreatePo
             />
           </div>
 
-          {/* Image attach */}
+          {/* 파일 첨부 */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium text-gray-700">사진 첨부 (최대 5장)</Label>
+              <Label className="text-sm font-medium text-gray-700">
+                파일 첨부 <span className="text-gray-400 font-normal">(최대 10개)</span>
+              </Label>
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={images.length >= 5}
+                disabled={files.length >= 10}
                 className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
               >
-                <ImagePlus className="w-3.5 h-3.5" />
-                사진 추가
+                <Paperclip className="w-3.5 h-3.5" />
+                파일 선택
               </button>
             </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={handleImageSelect}
-            />
+            <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileSelect} />
 
-            {images.length > 0 && (
-              <div className="flex gap-2 flex-wrap">
-                {images.map((img, idx) => (
-                  <div key={idx} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={img.objectUrl} alt="" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => removeImage(idx)}
-                      className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center hover:bg-black/80 transition-colors"
-                    >
-                      <X className="w-3 h-3 text-white" />
-                    </button>
+            {files.length === 0 ? (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full h-14 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center gap-2 text-sm text-gray-400 hover:border-indigo-300 hover:text-indigo-400 transition-colors"
+              >
+                <Paperclip className="w-4 h-4" />
+                클릭해서 파일 첨부 (이미지, PDF, 문서 등)
+              </button>
+            ) : (
+              <div className="space-y-2">
+                {/* 이미지 미리보기 그리드 */}
+                {files.some((f) => f.objectUrl) && (
+                  <div className="flex gap-2 flex-wrap">
+                    {files.filter((f) => f.objectUrl).map((fp, i) => {
+                      const realIdx = files.indexOf(fp)
+                      return (
+                        <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={fp.objectUrl!} alt="" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removeFile(realIdx)}
+                            className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center hover:bg-black/80"
+                          >
+                            <X className="w-3 h-3 text-white" />
+                          </button>
+                        </div>
+                      )
+                    })}
                   </div>
-                ))}
-                {images.length < 5 && (
+                )}
+
+                {/* 일반 파일 목록 */}
+                {files.filter((f) => !f.objectUrl).map((fp, i) => {
+                  const realIdx = files.indexOf(fp)
+                  const Icon = getFileIcon(fp.file.type)
+                  return (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200">
+                      <Icon className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                      <span className="text-sm text-gray-700 truncate flex-1">{fp.file.name}</span>
+                      <span className="text-xs text-gray-400 flex-shrink-0">{formatBytes(fp.file.size)}</span>
+                      <button type="button" onClick={() => removeFile(realIdx)} className="text-gray-400 hover:text-red-500 flex-shrink-0">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )
+                })}
+
+                {files.length < 10 && (
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-indigo-300 hover:text-indigo-400 transition-colors flex-shrink-0"
+                    className="text-xs text-indigo-500 hover:text-indigo-700 flex items-center gap-1"
                   >
-                    <ImagePlus className="w-5 h-5" />
+                    <Paperclip className="w-3 h-3" />
+                    파일 추가
                   </button>
                 )}
               </div>
-            )}
-
-            {images.length === 0 && (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full h-16 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center gap-2 text-sm text-gray-400 hover:border-indigo-300 hover:text-indigo-400 transition-colors"
-              >
-                <ImagePlus className="w-4 h-4" />
-                클릭해서 사진 첨부
-              </button>
             )}
           </div>
 
@@ -240,7 +277,7 @@ export function CreatePostModal({ cohortId, open, onClose, onCreated }: CreatePo
               {loading ? (
                 <span className="flex items-center gap-2">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  {images.length > 0 ? '업로드 중...' : '게시 중...'}
+                  {files.length > 0 ? '업로드 중...' : '게시 중...'}
                 </span>
               ) : '게시하기'}
             </Button>

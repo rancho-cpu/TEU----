@@ -104,6 +104,9 @@ export interface PostAttachment {
   id: string
   post_id: string
   storage_path: string
+  file_name: string | null
+  file_type: string | null
+  file_size: number | null
   public_url?: string
   created_at: string
 }

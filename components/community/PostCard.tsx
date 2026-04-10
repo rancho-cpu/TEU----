@@ -21,17 +21,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-  MessageCircle,
-  Trash2,
-  Send,
-  Calendar,
-  ChevronRight,
-  Heart,
-  Star,
-  HandMetal,
-  Pin,
-  PinOff,
-  MoreHorizontal,
+  MessageCircle, Trash2, Send, Calendar, ChevronRight,
+  Heart, Star, HandMetal, Pin, PinOff, MoreHorizontal,
+  File, FileText, FileImage, FileVideo, Paperclip,
 } from 'lucide-react'
 
 interface PostCardProps {
@@ -57,7 +49,21 @@ const CATEGORY_COLORS: Record<string, string> = {
   자유: 'bg-gray-100 text-gray-700',
   일반: 'bg-gray-100 text-gray-700',
   질문: 'bg-amber-100 text-amber-700',
-  자료: 'bg-green-100 text-green-700',
+}
+
+function getFileIcon(type: string | null) {
+  if (!type) return File
+  if (type.startsWith('image/')) return FileImage
+  if (type.startsWith('video/')) return FileVideo
+  if (type.includes('pdf') || type.includes('word') || type.includes('text')) return FileText
+  return File
+}
+
+function formatBytes(bytes: number | null) {
+  if (!bytes) return ''
+  if (bytes < 1024) return `${bytes}B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
 }
 
 function formatDate(dateString: string) {
@@ -260,30 +266,59 @@ export function PostCard({
               {post.content}
             </p>
 
-            {/* Image thumbnails (최대 3장) */}
+            {/* 첨부 파일 미리보기 */}
             {post.attachments && post.attachments.length > 0 && (
-              <div className="flex gap-2 mt-3">
-                {post.attachments.slice(0, 3).map((att, idx) => (
-                  <div
-                    key={att.id}
-                    className="relative rounded-lg overflow-hidden bg-gray-100 flex-shrink-0"
-                    style={{ width: 72, height: 72 }}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={att.public_url ?? att.storage_path}
-                      alt=""
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                    {/* +N 오버레이 */}
-                    {idx === 2 && post.attachments!.length > 3 && (
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                        <span className="text-white text-sm font-semibold">+{post.attachments!.length - 3}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
+              <div className="mt-3 space-y-2" onClick={(e) => e.stopPropagation()}>
+                {/* 이미지 썸네일 (최대 3장) */}
+                {(() => {
+                  const imgs = post.attachments!.filter((a) => a.file_type?.startsWith('image/') ?? false)
+                  if (imgs.length === 0) return null
+                  return (
+                    <div className="flex gap-2">
+                      {imgs.slice(0, 3).map((att, idx) => (
+                        <div key={att.id} className="relative rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 w-[72px] h-[72px]">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={att.public_url ?? att.storage_path} alt="" className="w-full h-full object-cover" loading="lazy" />
+                          {idx === 2 && imgs.length > 3 && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                              <span className="text-white text-sm font-semibold">+{imgs.length - 3}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
+                {/* 일반 파일 칩 */}
+                {(() => {
+                  const others = post.attachments!.filter((a) => !(a.file_type?.startsWith('image/') ?? false))
+                  if (others.length === 0) return null
+                  return (
+                    <div className="flex flex-wrap gap-1.5">
+                      {others.slice(0, 3).map((att) => {
+                        const Icon = getFileIcon(att.file_type)
+                        return (
+                          <a
+                            key={att.id}
+                            href={att.public_url ?? att.storage_path}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-xs text-gray-600 transition-colors max-w-[180px]"
+                          >
+                            <Icon className="w-3.5 h-3.5 flex-shrink-0 text-gray-500" />
+                            <span className="truncate">{att.file_name ?? '파일'}</span>
+                            {att.file_size && <span className="text-gray-400 flex-shrink-0">{formatBytes(att.file_size)}</span>}
+                          </a>
+                        )
+                      })}
+                      {others.length > 3 && (
+                        <span className="flex items-center px-2.5 py-1 bg-gray-100 rounded-full text-xs text-gray-500">
+                          <Paperclip className="w-3 h-3 mr-1" />+{others.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })()}
               </div>
             )}
 
@@ -412,28 +447,42 @@ export function PostCard({
               {post.content}
             </div>
 
-            {/* 첨부 사진 전체 */}
-            {post.attachments && post.attachments.length > 0 && (
-              <div className={`grid gap-2 ${post.attachments.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                {post.attachments.map((att) => (
-                  <a
-                    key={att.id}
-                    href={att.public_url ?? att.storage_path}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="rounded-xl overflow-hidden bg-gray-100 block"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={att.public_url ?? att.storage_path}
-                      alt=""
-                      className="w-full object-cover max-h-72 hover:opacity-90 transition-opacity"
-                    />
-                  </a>
-                ))}
-              </div>
-            )}
+            {/* 첨부 파일 전체 */}
+            {post.attachments && post.attachments.length > 0 && (() => {
+              const imgs = post.attachments.filter((a) => a.file_type?.startsWith('image/') ?? false)
+              const others = post.attachments.filter((a) => !(a.file_type?.startsWith('image/') ?? false))
+              return (
+                <div className="space-y-3">
+                  {imgs.length > 0 && (
+                    <div className={`grid gap-2 ${imgs.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                      {imgs.map((att) => (
+                        <a key={att.id} href={att.public_url ?? att.storage_path} target="_blank" rel="noopener noreferrer"
+                          className="rounded-xl overflow-hidden bg-gray-100 block">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={att.public_url ?? att.storage_path} alt="" className="w-full object-cover max-h-72 hover:opacity-90 transition-opacity" />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                  {others.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-medium text-gray-500 flex items-center gap-1"><Paperclip className="w-3.5 h-3.5" />첨부파일</p>
+                      {others.map((att) => {
+                        const Icon = getFileIcon(att.file_type)
+                        return (
+                          <a key={att.id} href={att.public_url ?? att.storage_path} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-2.5 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
+                            <Icon className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                            <span className="text-sm text-gray-700 flex-1 truncate">{att.file_name ?? '파일'}</span>
+                            {att.file_size && <span className="text-xs text-gray-400 flex-shrink-0">{formatBytes(att.file_size)}</span>}
+                          </a>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
 
             {/* Reactions */}
             <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
