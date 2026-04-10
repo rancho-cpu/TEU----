@@ -395,7 +395,7 @@ export function PostCard({
 
       {/* Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0">
+        <DialogContent className="max-w-5xl w-[90vw] max-h-[92vh] flex flex-col p-0 gap-0">
           <DialogHeader className="px-6 pt-6 pb-4">
             <div className="flex items-start justify-between gap-3">
               <span
