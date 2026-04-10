@@ -51,8 +51,11 @@ interface PostCardProps {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  일반: 'bg-gray-100 text-gray-700',
   공지: 'bg-blue-100 text-blue-700',
+  소개: 'bg-purple-100 text-purple-700',
+  출결: 'bg-rose-100 text-rose-700',
+  자유: 'bg-gray-100 text-gray-700',
+  일반: 'bg-gray-100 text-gray-700',
   질문: 'bg-amber-100 text-amber-700',
   자료: 'bg-green-100 text-green-700',
 }
@@ -257,6 +260,33 @@ export function PostCard({
               {post.content}
             </p>
 
+            {/* Image thumbnails (최대 3장) */}
+            {post.attachments && post.attachments.length > 0 && (
+              <div className="flex gap-2 mt-3">
+                {post.attachments.slice(0, 3).map((att, idx) => (
+                  <div
+                    key={att.id}
+                    className="relative rounded-lg overflow-hidden bg-gray-100 flex-shrink-0"
+                    style={{ width: 72, height: 72 }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={att.public_url ?? att.storage_path}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                    {/* +N 오버레이 */}
+                    {idx === 2 && post.attachments!.length > 3 && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <span className="text-white text-sm font-semibold">+{post.attachments!.length - 3}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Footer */}
             <div className="flex items-center gap-3 mt-3">
               <span className="flex items-center gap-1 text-xs text-gray-400">
@@ -381,6 +411,29 @@ export function PostCard({
             <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
               {post.content}
             </div>
+
+            {/* 첨부 사진 전체 */}
+            {post.attachments && post.attachments.length > 0 && (
+              <div className={`grid gap-2 ${post.attachments.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                {post.attachments.map((att) => (
+                  <a
+                    key={att.id}
+                    href={att.public_url ?? att.storage_path}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="rounded-xl overflow-hidden bg-gray-100 block"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={att.public_url ?? att.storage_path}
+                      alt=""
+                      className="w-full object-cover max-h-72 hover:opacity-90 transition-opacity"
+                    />
+                  </a>
+                ))}
+              </div>
+            )}
 
             {/* Reactions */}
             <div className="flex items-center gap-2 pb-2 border-b border-gray-100">

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import type { Post, Profile } from '@/types'
+import type { Post, PostAttachment, Profile } from '@/types'
 import { CommunityClientWrapper } from '@/components/community/CommunityClientWrapper'
 
 export default async function CommunityPage({
@@ -39,12 +39,15 @@ export default async function CommunityPage({
   let userStarredSet = new Set<string>()
   let userClappedSet = new Set<string>()
 
+  let attachmentsByPost: Record<string, PostAttachment[]> = {}
+
   if (postIds.length > 0) {
-    const [{ data: commentData }, { data: likesData }, { data: reactionsData }] =
+    const [{ data: commentData }, { data: likesData }, { data: reactionsData }, { data: attachmentsData }] =
       await Promise.all([
         supabase.from('comments').select('post_id').in('post_id', postIds),
         supabase.from('post_likes').select('post_id, user_id').in('post_id', postIds),
         supabase.from('post_reactions').select('post_id, user_id, type').in('post_id', postIds),
+        supabase.from('post_attachments').select('*').in('post_id', postIds).order('created_at'),
       ])
 
     for (const row of (commentData ?? []) as { post_id: string }[]) {
@@ -67,6 +70,13 @@ export default async function CommunityPage({
         if (row.user_id === user.id) userClappedSet.add(row.post_id)
       }
     }
+
+    // 첨부 이미지 public URL
+    const { data: { publicUrl: attBaseUrl } } = supabase.storage.from('post-attachments').getPublicUrl('')
+    for (const row of (attachmentsData ?? []) as PostAttachment[]) {
+      if (!attachmentsByPost[row.post_id]) attachmentsByPost[row.post_id] = []
+      attachmentsByPost[row.post_id].push({ ...row, public_url: `${attBaseUrl}${row.storage_path}` })
+    }
   }
 
   const posts: Post[] = (postsData ?? []).map((p) => ({
@@ -78,6 +88,7 @@ export default async function CommunityPage({
     clap_count: clapCounts[p.id] ?? 0,
     user_starred: userStarredSet.has(p.id),
     user_clapped: userClappedSet.has(p.id),
+    attachments: attachmentsByPost[p.id] ?? [],
   }))
 
   const members = (membersData ?? [])

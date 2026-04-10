@@ -100,6 +100,14 @@ export interface ChallengeSubmission {
   profile?: Profile
 }
 
+export interface PostAttachment {
+  id: string
+  post_id: string
+  storage_path: string
+  public_url?: string
+  created_at: string
+}
+
 export interface Post {
   id: string
   cohort_id: string
@@ -119,6 +127,7 @@ export interface Post {
   clap_count?: number
   user_starred?: boolean
   user_clapped?: boolean
+  attachments?: PostAttachment[]
 }
 
 export interface Comment {
