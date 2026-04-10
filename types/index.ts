@@ -130,6 +130,16 @@ export interface Comment {
   profile?: Profile
 }
 
+export interface Photo {
+  id: string
+  cohort_id: string
+  user_id: string
+  storage_path: string
+  caption: string | null
+  created_at: string
+  profile?: Profile
+}
+
 export interface Shortcut {
   id: string
   cohort_id: string

@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import {
   BookOpen, Users, BarChart2, Users2, Settings,
-  ExternalLink, LogOut
+  ExternalLink, LogOut, Images
 } from 'lucide-react'
 import type { Cohort, Shortcut } from '@/types'
 import { CohortSwitcher } from './CohortSwitcher'
@@ -14,6 +14,7 @@ import { CohortSwitcher } from './CohortSwitcher'
 const navItems = [
   { href: 'contents',   label: '콘텐츠',      icon: BookOpen },
   { href: 'community',  label: '커뮤니티',     icon: Users },
+  { href: 'photos',     label: '사진 게시판',  icon: Images },
   { href: 'statistics', label: '통계',         icon: BarChart2 },
   { href: 'members',    label: '구성원 목록',  icon: Users2 },
   { href: 'settings',   label: '설정',         icon: Settings },

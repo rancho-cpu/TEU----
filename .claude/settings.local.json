@@ -31,7 +31,22 @@
       "Bash(find \"C:\\\\Users\\\\tndus\\\\OneDrive\\\\Desktop\\\\TEU 교육 플랫폼/app/\\(dashboard\\)/[cohortId]/contents\" -type f)",
       "Bash(xargs grep:*)",
       "Bash(xargs basename:*)",
-      "Bash(ls -la \"/c/Users/tndus/OneDrive/Desktop/TEU 교육 플랫폼/app/\\(dashboard\\)/[cohortId]/\")"
+      "Bash(ls -la \"/c/Users/tndus/OneDrive/Desktop/TEU 교육 플랫폼/app/\\(dashboard\\)/[cohortId]/\")",
+      "Bash(curl -X POST \"https://api.vercel.com/v1/integrations/deploy/prj_7xXwgYnIVwQTQlLe6MwmoJakdCMZ/8NoHv3peXQ\")",
+      "Bash(curl -s -X POST \"https://api.vercel.com/v1/integrations/deploy/prj_7xXwgYnIVwQTQlLe6MwmoJakdCMZ/8NoHv3peXQ\")",
+      "Bash(npx vercel:*)",
+      "Bash(powershell.exe -Command \"Set-Location 'C:\\\\Users\\\\tndus\\\\Desktop\\\\TEU 교육 플랫폼'; git add components/community/PostCard.tsx components/community/CommunityClientWrapper.tsx types/index.ts 'app/\\(dashboard\\)/[cohortId]/community/page.tsx' supabase/migrations/002_post_likes.sql; git status\")",
+      "Bash(powershell.exe -Command 'Set-Location '\\\\''C:\\\\Users\\\\tndus\\\\Desktop\\\\TEU 교육 플랫폼'\\\\''; git commit -m '\\\\''feat: 커뮤니티 좋아요/카테고리 필터/검색 기능 추가:*)",
+      "Bash(powershell.exe -Command \"Set-Location 'C:\\\\Users\\\\tndus\\\\Desktop\\\\TEU 교육 플랫폼'; git push origin main\")",
+      "Bash(powershell.exe -Command \"Set-Location 'C:\\\\Users\\\\tndus\\\\Desktop\\\\TEU 교육 플랫폼'; git add supabase/migrations/003_channels_reactions_folders.sql types/index.ts 'app/\\(dashboard\\)/[cohortId]/community/page.tsx' 'app/\\(dashboard\\)/[cohortId]/contents/page.tsx' components/community/CommunityClientWrapper.tsx components/community/PostCard.tsx components/community/CreatePostModal.tsx components/contents/ContentsClientWrapper.tsx components/challenges/ChallengesClientWrapper.tsx; git status\")",
+      "Bash(powershell.exe -Command 'Set-Location '\\\\''C:\\\\Users\\\\tndus\\\\Desktop\\\\TEU 교육 플랫폼'\\\\''; git commit -m '\\\\''feat: Classum 클론 대규모 업데이트 - 채널/폴더/반응/챌린지 섹션:*)",
+      "Bash(powershell.exe -Command 'Set-Location '\\\\''C:\\\\Users\\\\tndus\\\\Desktop\\\\TEU 교육 플랫폼'\\\\''; git add components/community/CreatePostModal.tsx; git commit -m '\\\\''fix: migration 미적용 환경에서도 게시글 작성 가능하도록 수정:*)",
+      "Bash(git push:*)",
+      "Bash(powershell.exe -Command 'Set-Location '\\\\''C:\\\\Users\\\\tndus\\\\Desktop\\\\TEU 교육 플랫폼'\\\\''; git add components/community/CreatePostModal.tsx; git commit -m '\\\\''fix: migration 미적용 환경 게시글 작성 오류 수정 \\(channel_id/type fallback\\):*)",
+      "Bash(powershell.exe -Command 'Set-Location '\\\\''C:\\\\Users\\\\tndus\\\\Desktop\\\\TEU 교육 플랫폼'\\\\''; git add components/layout/MembersClientWrapper.tsx; git commit -m '\\\\''feat: 구성원 목록 페이지네이션 추가 \\(10/20/50개씩, 번호/화살표 버튼\\):*)",
+      "Bash(powershell.exe -Command 'Set-Location '\\\\''C:\\\\Users\\\\tndus\\\\Desktop\\\\TEU 교육 플랫폼'\\\\''; git add '\\\\''app/\\(dashboard\\)/[cohortId]/community/page.tsx'\\\\'' components/community/CommunityClientWrapper.tsx components/community/CreatePostModal.tsx components/community/PostCard.tsx; git commit -m '\\\\''fix: 커뮤니티 채널 제거 + 글쓰기 수정:*)",
+      "Bash(powershell.exe -Command \"Set-Location 'C:\\\\Users\\\\tndus\\\\Desktop\\\\TEU 교육 플랫폼'; git add components/community/CreatePostModal.tsx; git commit -m 'debug: 게시글 작성 오류 메시지 상세 표시'; git push origin main\")",
+      "Bash(powershell.exe -Command 'Set-Location '\\\\''C:\\\\Users\\\\tndus\\\\Desktop\\\\TEU 교육 플랫폼'\\\\''; git add '\\\\''app/\\(dashboard\\)/[cohortId]/community/page.tsx'\\\\'' components/community/CreatePostModal.tsx components/community/PostCard.tsx; git commit -m '\\\\''fix: posts-profiles 관계 모호성 해결 \\(user_id FK 명시\\):*)"
     ]
   }
 }
