@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/layout/Sidebar'
+import { ChatBot } from '@/components/chatbot/ChatBot'
 import type { Cohort, Profile, Shortcut } from '@/types'
 
 export default async function DashboardLayout({
@@ -37,6 +38,7 @@ export default async function DashboardLayout({
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>
+      <ChatBot cohortId={cohortId} />
     </div>
   )
 }

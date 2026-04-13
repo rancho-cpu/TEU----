@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { Cohort, Shortcut } from '@/types'
+import type { Cohort, Shortcut, ChatbotFaq } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,6 +28,7 @@ import {
   AlertTriangle,
   MessageCircle,
   Radio,
+  Bot,
 } from 'lucide-react'
 
 const PRESET_COLORS = [
@@ -42,12 +43,14 @@ interface SettingsClientWrapperProps {
   cohortId: string
   cohort: Cohort
   initialShortcuts: Shortcut[]
+  initialFaqs: ChatbotFaq[]
 }
 
 export function SettingsClientWrapper({
   cohortId,
   cohort,
   initialShortcuts,
+  initialFaqs,
 }: SettingsClientWrapperProps) {
   const supabase = createClient()
   const router = useRouter()
@@ -238,6 +241,95 @@ export function SettingsClientWrapper({
       setShortcuts((prev) => prev.filter((s) => s.id !== id))
     }
     setDeletingId(null)
+  }
+
+  // ── 챗봇 FAQ state ────────────────────────────────────────────────────────
+  const [faqs, setFaqs] = useState<ChatbotFaq[]>(initialFaqs)
+  const [faqModalOpen, setFaqModalOpen] = useState(false)
+  const [editingFaq, setEditingFaq] = useState<ChatbotFaq | null>(null)
+  const [faqQuestion, setFaqQuestion] = useState('')
+  const [faqAnswer, setFaqAnswer] = useState('')
+  const [faqKeywords, setFaqKeywords] = useState('')
+  const [savingFaq, setSavingFaq] = useState(false)
+  const [faqError, setFaqError] = useState<string | null>(null)
+  const [deletingFaqId, setDeletingFaqId] = useState<string | null>(null)
+
+  const openAddFaq = () => {
+    setEditingFaq(null)
+    setFaqQuestion('')
+    setFaqAnswer('')
+    setFaqKeywords('')
+    setFaqError(null)
+    setFaqModalOpen(true)
+  }
+
+  const openEditFaq = (faq: ChatbotFaq) => {
+    setEditingFaq(faq)
+    setFaqQuestion(faq.question)
+    setFaqAnswer(faq.answer)
+    setFaqKeywords(faq.keywords.join(', '))
+    setFaqError(null)
+    setFaqModalOpen(true)
+  }
+
+  const handleSaveFaq = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!faqQuestion.trim() || !faqAnswer.trim()) {
+      setFaqError('질문과 답변은 필수입니다.')
+      return
+    }
+    setSavingFaq(true)
+    setFaqError(null)
+
+    const keywords = faqKeywords
+      .split(',')
+      .map((k) => k.trim())
+      .filter(Boolean)
+
+    if (editingFaq) {
+      const { error } = await supabase
+        .from('chatbot_faqs')
+        .update({ question: faqQuestion.trim(), answer: faqAnswer.trim(), keywords })
+        .eq('id', editingFaq.id)
+
+      if (error) { setFaqError('저장 중 오류가 발생했습니다.'); setSavingFaq(false); return }
+
+      setFaqs((prev) =>
+        prev.map((f) =>
+          f.id === editingFaq.id
+            ? { ...f, question: faqQuestion.trim(), answer: faqAnswer.trim(), keywords }
+            : f
+        )
+      )
+    } else {
+      const maxOrder = faqs.length > 0 ? Math.max(...faqs.map((f) => f.order_index)) : 0
+
+      const { data, error } = await supabase
+        .from('chatbot_faqs')
+        .insert({
+          cohort_id: cohortId,
+          question: faqQuestion.trim(),
+          answer: faqAnswer.trim(),
+          keywords,
+          order_index: maxOrder + 1,
+        })
+        .select()
+        .single()
+
+      if (error || !data) { setFaqError('저장 중 오류가 발생했습니다.'); setSavingFaq(false); return }
+      setFaqs((prev) => [...prev, data as ChatbotFaq])
+    }
+
+    setSavingFaq(false)
+    setFaqModalOpen(false)
+  }
+
+  const handleDeleteFaq = async (id: string) => {
+    if (!confirm('이 FAQ를 삭제하시겠습니까?')) return
+    setDeletingFaqId(id)
+    const { error } = await supabase.from('chatbot_faqs').delete().eq('id', id)
+    if (!error) setFaqs((prev) => prev.filter((f) => f.id !== id))
+    setDeletingFaqId(null)
   }
 
   const moveShortcut = async (index: number, direction: 'up' | 'down') => {
@@ -433,6 +525,59 @@ export function SettingsClientWrapper({
         </div>
       </div>
 
+      {/* ── 챗봇 FAQ 관리 ── */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-violet-500 inline-block" />
+            챗봇 FAQ 관리
+          </h2>
+          <Button size="sm" variant="outline" onClick={openAddFaq} className="h-7 gap-1 text-xs">
+            <Plus className="w-3 h-3" /> FAQ 추가
+          </Button>
+        </div>
+        <p className="text-xs text-gray-400 mb-4">
+          수강생이 챗봇에 질문할 때 활용되는 답변입니다. 키워드를 쉼표로 구분해 입력하세요.
+        </p>
+
+        {faqs.length === 0 ? (
+          <div className="text-center py-8 text-gray-400">
+            <Bot className="w-8 h-8 mx-auto mb-2 opacity-30" />
+            <p className="text-sm">등록된 FAQ가 없습니다.</p>
+            <p className="text-xs mt-1 text-gray-400">플랫폼 기본 FAQ는 항상 제공됩니다.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {faqs.map((faq) => (
+              <div key={faq.id} className="flex items-start gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors group">
+                <Bot className="w-4 h-4 text-violet-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800">{faq.question}</p>
+                  <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{faq.answer}</p>
+                  {faq.keywords.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {faq.keywords.map((kw) => (
+                        <span key={kw} className="text-xs bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded">
+                          {kw}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-blue-500 hover:text-blue-700" onClick={() => openEditFaq(faq)}>
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400 hover:text-red-600" onClick={() => handleDeleteFaq(faq.id)} disabled={deletingFaqId === faq.id}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Danger Zone */}
       <div className="bg-white rounded-xl border border-red-200 p-6">
         <h2 className="text-base font-semibold text-red-600 mb-1 flex items-center gap-2">
@@ -463,6 +608,61 @@ export function SettingsClientWrapper({
           </Button>
         </div>
       </div>
+
+      {/* FAQ Modal */}
+      <Dialog open={faqModalOpen} onOpenChange={setFaqModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bot className="w-5 h-5 text-violet-500" />
+              {editingFaq ? 'FAQ 수정' : 'FAQ 추가'}
+            </DialogTitle>
+          </DialogHeader>
+          <Separator />
+          <form onSubmit={handleSaveFaq} className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">질문</Label>
+              <Input
+                value={faqQuestion}
+                onChange={(e) => setFaqQuestion(e.target.value)}
+                placeholder="예: 과제를 어떻게 제출하나요?"
+                className="text-sm"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">답변</Label>
+              <Textarea
+                value={faqAnswer}
+                onChange={(e) => setFaqAnswer(e.target.value)}
+                placeholder="질문에 대한 답변을 입력하세요. **볼드** 문법 사용 가능."
+                className="text-sm resize-none min-h-[120px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">
+                키워드 <span className="text-gray-400 font-normal text-xs">(쉼표로 구분)</span>
+              </Label>
+              <Input
+                value={faqKeywords}
+                onChange={(e) => setFaqKeywords(e.target.value)}
+                placeholder="예: 과제, 제출, 제출방법"
+                className="text-sm"
+              />
+              <p className="text-xs text-gray-400">챗봇이 질문을 인식할 때 사용됩니다.</p>
+            </div>
+            {faqError && (
+              <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{faqError}</p>
+            )}
+            <div className="flex gap-2 justify-end">
+              <Button type="button" variant="outline" onClick={() => setFaqModalOpen(false)}>취소</Button>
+              <Button type="submit" disabled={savingFaq}>
+                {savingFaq ? '저장 중...' : editingFaq ? '수정 완료' : '추가하기'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Shortcut Modal */}
       <Dialog open={shortcutModalOpen} onOpenChange={setShortcutModalOpen}>

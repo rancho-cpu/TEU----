@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import type { Cohort, Shortcut, Profile } from '@/types'
+import type { Cohort, Shortcut, Profile, ChatbotFaq } from '@/types'
 import { SettingsClientWrapper } from '@/components/layout/SettingsClientWrapper'
 import { ShieldAlert } from 'lucide-react'
 
@@ -17,7 +17,7 @@ export default async function SettingsPage({
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: profileData }, { data: cohortData }, { data: shortcutsData }] =
+  const [{ data: profileData }, { data: cohortData }, { data: shortcutsData }, { data: faqsData }] =
     await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('cohorts').select('*').eq('id', cohortId).single(),
@@ -26,6 +26,11 @@ export default async function SettingsPage({
         .select('*')
         .eq('cohort_id', cohortId)
         .order('order', { ascending: true }),
+      supabase
+        .from('chatbot_faqs')
+        .select('*')
+        .eq('cohort_id', cohortId)
+        .order('order_index', { ascending: true }),
     ])
 
   const profile = profileData as Profile | null
@@ -48,6 +53,7 @@ export default async function SettingsPage({
       cohortId={cohortId}
       cohort={cohortData as Cohort}
       initialShortcuts={(shortcutsData ?? []) as Shortcut[]}
+      initialFaqs={(faqsData ?? []) as ChatbotFaq[]}
     />
   )
 }

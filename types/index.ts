@@ -212,3 +212,13 @@ export interface Shortcut {
   order: number
   created_at: string
 }
+
+export interface ChatbotFaq {
+  id: string
+  cohort_id: string
+  question: string
+  answer: string
+  keywords: string[]
+  order_index: number
+  created_at: string
+}
