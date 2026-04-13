@@ -118,6 +118,7 @@ const QUICK_QUESTIONS = [
   '프로필 사진 변경',
   '강의 영상 보기',
   '사진 다운로드',
+  '커뮤니티 글쓰기',
 ]
 
 export function ChatBot({ cohortId }: Props) {
