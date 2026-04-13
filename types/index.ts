@@ -5,6 +5,7 @@ export interface Profile {
   email: string
   name: string | null
   avatar_url: string | null
+  bio: string | null
   role: Role
   created_at: string
 }

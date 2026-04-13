@@ -6,9 +6,9 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import {
   BookOpen, Users, BarChart2, Users2, Settings,
-  ExternalLink, LogOut, Images, ClipboardList,
+  ExternalLink, LogOut, Images, ClipboardList, UserCircle2,
 } from 'lucide-react'
-import type { Cohort, Shortcut } from '@/types'
+import type { Cohort, Profile, Shortcut } from '@/types'
 import { CohortSwitcher } from './CohortSwitcher'
 
 const navItems = [
@@ -53,9 +53,10 @@ interface SidebarProps {
   cohorts: Cohort[]
   shortcuts: Shortcut[]
   currentCohort: Cohort
+  profile?: Profile | null
 }
 
-export function Sidebar({ cohortId, cohorts, shortcuts, currentCohort }: SidebarProps) {
+export function Sidebar({ cohortId, cohorts, shortcuts, currentCohort, profile }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -161,8 +162,39 @@ export function Sidebar({ cohortId, cohorts, shortcuts, currentCohort }: Sidebar
         </div>
       )}
 
-      {/* Logout */}
-      <div className="p-3 border-t border-gray-200">
+      {/* Profile + Logout */}
+      <div className="p-3 border-t border-gray-200 space-y-1">
+        {/* 내 프로필 */}
+        <Link
+          href={`/${cohortId}/profile`}
+          className={cn(
+            'flex items-center gap-2.5 px-3 py-2 rounded-lg w-full transition-colors group',
+            pathname.startsWith(`/${cohortId}/profile`)
+              ? 'bg-indigo-50 text-indigo-700'
+              : 'hover:bg-gray-100'
+          )}
+        >
+          {/* 아바타 */}
+          <div className="w-7 h-7 rounded-full overflow-hidden bg-indigo-100 flex items-center justify-center flex-shrink-0 border border-white shadow-sm">
+            {profile?.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xs font-bold text-indigo-600">
+                {(profile?.name ?? profile?.email ?? '?').charAt(0).toUpperCase()}
+              </span>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-800 truncate group-hover:text-gray-900">
+              {profile?.name ?? '이름 미설정'}
+            </p>
+            <p className="text-xs text-gray-400 truncate">{profile?.email ?? ''}</p>
+          </div>
+          <UserCircle2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+        </Link>
+
+        {/* 로그아웃 */}
         <button
           onClick={handleLogout}
           className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
