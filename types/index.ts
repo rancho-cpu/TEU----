@@ -145,6 +145,40 @@ export interface Comment {
   profile?: Profile
 }
 
+export interface Assignment {
+  id: string
+  cohort_id: string
+  title: string
+  description: string | null
+  deadline: string | null
+  order_index: number
+  created_at: string
+  submission_count?: number
+  user_submitted?: boolean
+  my_submission?: AssignmentSubmission | null
+}
+
+export interface AssignmentSubmission {
+  id: string
+  assignment_id: string
+  user_id: string
+  content: string | null
+  submitted_at: string
+  profile?: Profile
+  attachments?: AssignmentAttachment[]
+}
+
+export interface AssignmentAttachment {
+  id: string
+  submission_id: string
+  storage_path: string
+  file_name: string | null
+  file_type: string | null
+  file_size: number | null
+  public_url?: string
+  created_at: string
+}
+
 export interface PhotoAlbum {
   id: string
   cohort_id: string

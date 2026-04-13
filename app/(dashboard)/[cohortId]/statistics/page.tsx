@@ -11,33 +11,24 @@ export default async function StatisticsPage({
   const { cohortId } = await params
   const supabase = await createClient()
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Fetch all data in parallel
   const [
-    { data: challengesData },
-    { data: submissionsData },
+    { data: assignmentsData },
+    { data: allSubmissionsData },
     { data: surveysData },
     { data: surveyResponsesData },
     { data: membersData },
   ] = await Promise.all([
     supabase
-      .from('challenges')
-      .select('id, title')
+      .from('assignments')
+      .select('id, title, order_index')
       .eq('cohort_id', cohortId)
-      .order('created_at', { ascending: true }),
+      .order('order_index', { ascending: true }),
     supabase
-      .from('challenge_submissions')
-      .select('challenge_id')
-      .in(
-        'challenge_id',
-        (await supabase.from('challenges').select('id').eq('cohort_id', cohortId)).data?.map(
-          (c: { id: string }) => c.id
-        ) ?? []
-      ),
+      .from('assignment_submissions')
+      .select('assignment_id, user_id'),
     supabase
       .from('surveys')
       .select('id, title')
@@ -45,68 +36,87 @@ export default async function StatisticsPage({
       .order('created_at', { ascending: true }),
     supabase
       .from('survey_responses')
-      .select('survey_id, submitted_at')
+      .select('survey_id')
       .in(
         'survey_id',
-        (await supabase.from('surveys').select('id').eq('cohort_id', cohortId)).data?.map(
-          (s: { id: string }) => s.id
-        ) ?? []
+        (await supabase.from('surveys').select('id').eq('cohort_id', cohortId))
+          .data?.map((s: { id: string }) => s.id) ?? []
       ),
     supabase
       .from('cohort_members')
-      .select('joined_at')
+      .select('user_id, joined_at, profile:profiles!user_id(id, name, avatar_url, email)')
       .eq('cohort_id', cohortId),
   ])
 
   const totalMembers = membersData?.length ?? 0
+  const assignmentIds = (assignmentsData ?? []).map((a: { id: string }) => a.id)
 
-  // Challenge stats
-  const submissionCountByChallenge: Record<string, number> = {}
-  for (const row of submissionsData ?? []) {
-    const r = row as { challenge_id: string }
-    submissionCountByChallenge[r.challenge_id] =
-      (submissionCountByChallenge[r.challenge_id] ?? 0) + 1
+  // 과제별 제출 수
+  const subCountByAssignment: Record<string, number> = {}
+  const subByUserAssignment: Record<string, Set<string>> = {} // userId -> Set<assignmentId>
+
+  for (const row of (allSubmissionsData ?? []) as { assignment_id: string; user_id: string }[]) {
+    if (!assignmentIds.includes(row.assignment_id)) continue
+    subCountByAssignment[row.assignment_id] = (subCountByAssignment[row.assignment_id] ?? 0) + 1
+    if (!subByUserAssignment[row.user_id]) subByUserAssignment[row.user_id] = new Set()
+    subByUserAssignment[row.user_id].add(row.assignment_id)
   }
 
-  const challengeStats = (challengesData ?? []).map((c: { id: string; title: string }) => {
-    const count = submissionCountByChallenge[c.id] ?? 0
+  // 과제별 제출률
+  const assignmentStats = (assignmentsData ?? []).map((a: { id: string; title: string }) => {
+    const count = subCountByAssignment[a.id] ?? 0
     return {
-      title: c.title,
+      id: a.id,
+      title: a.title,
       submission_count: count,
       total_members: totalMembers,
       percentage: totalMembers > 0 ? Math.round((count / totalMembers) * 100) : 0,
     }
   })
 
-  // Survey stats
-  const responseCountBySurvey: Record<string, number> = {}
-  for (const row of surveyResponsesData ?? []) {
-    const r = row as { survey_id: string }
-    responseCountBySurvey[r.survey_id] = (responseCountBySurvey[r.survey_id] ?? 0) + 1
-  }
+  // 멤버별 제출률
+  const memberStats = (membersData ?? []).map((m) => {
+    const profile = m.profile as { id: string; name: string | null; avatar_url: string | null; email: string } | null
+    const userId = profile?.id ?? (m as { user_id: string }).user_id
+    const submitted = subByUserAssignment[userId]?.size ?? 0
+    const total = assignmentIds.length
+    return {
+      user_id: userId,
+      name: profile?.name ?? profile?.email ?? '알 수 없음',
+      avatar_url: profile?.avatar_url ?? null,
+      submitted,
+      total,
+      percentage: total > 0 ? Math.round((submitted / total) * 100) : 0,
+    }
+  }).sort((a, b) => b.percentage - a.percentage)
 
+  // 설문 응답 현황
+  const responseCountBySurvey: Record<string, number> = {}
+  for (const row of (surveyResponsesData ?? []) as { survey_id: string }[]) {
+    responseCountBySurvey[row.survey_id] = (responseCountBySurvey[row.survey_id] ?? 0) + 1
+  }
   const surveyStats = (surveysData ?? []).map((s: { id: string; title: string }) => ({
-    title: s.title.length > 12 ? s.title.slice(0, 12) + '…' : s.title,
+    title: s.title.length > 14 ? s.title.slice(0, 14) + '…' : s.title,
     response_count: responseCountBySurvey[s.id] ?? 0,
   }))
 
-  // Member join trend (by month)
+  // 멤버 가입 추이
   const joinCountByMonth: Record<string, number> = {}
-  for (const row of membersData ?? []) {
-    const r = row as { joined_at: string }
-    const month = r.joined_at.slice(0, 7) // YYYY-MM
+  for (const row of (membersData ?? []) as { joined_at: string }[]) {
+    const month = row.joined_at.slice(0, 7)
     joinCountByMonth[month] = (joinCountByMonth[month] ?? 0) + 1
   }
-
   const joinTrend = Object.entries(joinCountByMonth)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, count]) => ({
-      month: month.replace('-', '.'),
-      count,
-    }))
+    .map(([month, count]) => ({ month: month.replace('-', '.'), count }))
+
+  // 평균 제출률
+  const avgRate = memberStats.length > 0
+    ? Math.round(memberStats.reduce((s, m) => s + m.percentage, 0) / memberStats.length)
+    : 0
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6 max-w-5xl mx-auto">
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <BarChart2 className="w-6 h-6 text-blue-500" />
@@ -116,14 +126,18 @@ export default async function StatisticsPage({
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-4 gap-4 mb-8">
         <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
           <p className="text-2xl font-bold text-blue-600">{totalMembers}</p>
           <p className="text-xs text-gray-500 mt-1">전체 멤버</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-          <p className="text-2xl font-bold text-green-600">{challengeStats.length}</p>
-          <p className="text-xs text-gray-500 mt-1">챌린지</p>
+          <p className="text-2xl font-bold text-indigo-600">{assignmentStats.length}</p>
+          <p className="text-xs text-gray-500 mt-1">과제</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
+          <p className="text-2xl font-bold text-green-600">{avgRate}%</p>
+          <p className="text-xs text-gray-500 mt-1">평균 제출률</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
           <p className="text-2xl font-bold text-purple-600">{surveyStats.length}</p>
@@ -132,7 +146,8 @@ export default async function StatisticsPage({
       </div>
 
       <StatsClientWrapper
-        challengeStats={challengeStats}
+        assignmentStats={assignmentStats}
+        memberStats={memberStats}
         surveyStats={surveyStats}
         joinTrend={joinTrend}
         totalMembers={totalMembers}
