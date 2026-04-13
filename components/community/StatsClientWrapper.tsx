@@ -5,8 +5,9 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
 } from 'recharts'
-import { Search, ChevronRight } from 'lucide-react'
+import { Search, Download } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 interface AssignmentStatItem {
@@ -20,6 +21,7 @@ interface AssignmentStatItem {
 interface MemberStatItem {
   user_id: string
   name: string
+  email: string
   avatar_url: string | null
   submitted: number
   total: number
@@ -69,6 +71,58 @@ export function StatsClientWrapper({
   const [search, setSearch] = useState('')
   const [pageSize] = useState(10)
   const [page, setPage] = useState(1)
+  const [exporting, setExporting] = useState(false)
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const XLSX = await import('xlsx')
+      const wb = XLSX.utils.book_new()
+
+      // 시트 1: 구성원 달성률
+      const memberRows = memberStats.map((m) => ({
+        '이름': m.name,
+        '이메일': m.email,
+        '완료 항목': m.submitted,
+        '전체 항목': m.total,
+        '달성률(%)': m.percentage,
+      }))
+      const ws1 = XLSX.utils.json_to_sheet(memberRows)
+      ws1['!cols'] = [{ wch: 16 }, { wch: 28 }, { wch: 12 }, { wch: 12 }, { wch: 12 }]
+      XLSX.utils.book_append_sheet(wb, ws1, '구성원 달성률')
+
+      // 시트 2: 글쓰기 과제별 현황
+      if (assignmentStats.length > 0) {
+        const assignRows = assignmentStats.map((a) => ({
+          '과제명': a.title,
+          '제출 수': a.submission_count,
+          '전체 멤버': a.total_members,
+          '제출률(%)': a.percentage,
+        }))
+        const ws2 = XLSX.utils.json_to_sheet(assignRows)
+        ws2['!cols'] = [{ wch: 30 }, { wch: 10 }, { wch: 12 }, { wch: 12 }]
+        XLSX.utils.book_append_sheet(wb, ws2, '과제별 현황')
+      }
+
+      // 시트 3: 설문 응답 현황
+      if (surveyStats.length > 0) {
+        const surveyRows = surveyStats.map((s) => ({
+          '설문명': s.title,
+          '응답 수': s.response_count,
+          '전체 멤버': totalMembers,
+          '응답률(%)': totalMembers > 0 ? Math.round((s.response_count / totalMembers) * 100) : 0,
+        }))
+        const ws3 = XLSX.utils.json_to_sheet(surveyRows)
+        ws3['!cols'] = [{ wch: 30 }, { wch: 10 }, { wch: 12 }, { wch: 12 }]
+        XLSX.utils.book_append_sheet(wb, ws3, '설문 응답 현황')
+      }
+
+      const date = new Date().toISOString().slice(0, 10)
+      XLSX.writeFile(wb, `통계_${date}.xlsx`)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const filtered = memberStats.filter((m) =>
     m.name.toLowerCase().includes(search.toLowerCase())
@@ -85,7 +139,17 @@ export function StatsClientWrapper({
             <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
             과제 제출률
           </h2>
-          <div className="flex gap-1 ml-auto border border-gray-200 rounded-lg p-0.5">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExport}
+            disabled={exporting}
+            className="ml-auto mr-2 h-7 gap-1.5 text-xs text-green-700 border-green-300 hover:bg-green-50"
+          >
+            <Download className="w-3.5 h-3.5" />
+            {exporting ? '내보내는 중...' : '엑셀 내보내기'}
+          </Button>
+          <div className="flex gap-1 border border-gray-200 rounded-lg p-0.5">
             <button
               onClick={() => setTab('member')}
               className={cn(

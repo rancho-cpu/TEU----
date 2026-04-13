@@ -46,7 +46,8 @@
       "Bash(powershell.exe -Command 'Set-Location '\\\\''C:\\\\Users\\\\tndus\\\\Desktop\\\\TEU 교육 플랫폼'\\\\''; git add components/layout/MembersClientWrapper.tsx; git commit -m '\\\\''feat: 구성원 목록 페이지네이션 추가 \\(10/20/50개씩, 번호/화살표 버튼\\):*)",
       "Bash(powershell.exe -Command 'Set-Location '\\\\''C:\\\\Users\\\\tndus\\\\Desktop\\\\TEU 교육 플랫폼'\\\\''; git add '\\\\''app/\\(dashboard\\)/[cohortId]/community/page.tsx'\\\\'' components/community/CommunityClientWrapper.tsx components/community/CreatePostModal.tsx components/community/PostCard.tsx; git commit -m '\\\\''fix: 커뮤니티 채널 제거 + 글쓰기 수정:*)",
       "Bash(powershell.exe -Command \"Set-Location 'C:\\\\Users\\\\tndus\\\\Desktop\\\\TEU 교육 플랫폼'; git add components/community/CreatePostModal.tsx; git commit -m 'debug: 게시글 작성 오류 메시지 상세 표시'; git push origin main\")",
-      "Bash(powershell.exe -Command 'Set-Location '\\\\''C:\\\\Users\\\\tndus\\\\Desktop\\\\TEU 교육 플랫폼'\\\\''; git add '\\\\''app/\\(dashboard\\)/[cohortId]/community/page.tsx'\\\\'' components/community/CreatePostModal.tsx components/community/PostCard.tsx; git commit -m '\\\\''fix: posts-profiles 관계 모호성 해결 \\(user_id FK 명시\\):*)"
+      "Bash(powershell.exe -Command 'Set-Location '\\\\''C:\\\\Users\\\\tndus\\\\Desktop\\\\TEU 교육 플랫폼'\\\\''; git add '\\\\''app/\\(dashboard\\)/[cohortId]/community/page.tsx'\\\\'' components/community/CreatePostModal.tsx components/community/PostCard.tsx; git commit -m '\\\\''fix: posts-profiles 관계 모호성 해결 \\(user_id FK 명시\\):*)",
+      "Bash(git -C \"C:\\\\Users\\\\tndus\\\\Desktop\\\\TEU 교육 플랫폼\" push)"
     ]
   }
 }

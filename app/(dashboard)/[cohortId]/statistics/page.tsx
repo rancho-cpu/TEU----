@@ -95,6 +95,7 @@ export default async function StatisticsPage({
     return {
       user_id: userId,
       name: profile?.name ?? profile?.email ?? '알 수 없음',
+      email: profile?.email ?? '',
       avatar_url: profile?.avatar_url ?? null,
       submitted: completed,
       total: totalItems,

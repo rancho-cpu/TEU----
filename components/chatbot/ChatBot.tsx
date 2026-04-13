@@ -136,6 +136,28 @@ export function ChatBot({ cohortId }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // ── 뒤로가기 버튼으로 채팅창 닫기 ───────────────────────────
+  const openChat = () => {
+    history.pushState({ chatbot: true }, '')
+    setOpen(true)
+  }
+
+  const closeChat = () => {
+    setOpen(false)
+  }
+
+  useEffect(() => {
+    const onPopState = (e: PopStateEvent) => {
+      if (open) {
+        // 뒤로가기 시 채팅창만 닫기 (페이지 이동 방지)
+        setOpen(false)
+        e.stopImmediatePropagation?.()
+      }
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [open])
+
   // 커스텀 FAQ 불러오기
   useEffect(() => {
     if (!open) return
@@ -204,7 +226,7 @@ export function ChatBot({ cohortId }: Props) {
     <>
       {/* ── 플로팅 버튼 ── */}
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => open ? closeChat() : openChat()}
         className={cn(
           'fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-200',
           open
@@ -234,7 +256,7 @@ export function ChatBot({ cohortId }: Props) {
               <p className="text-indigo-200 text-xs">플랫폼 사용 안내</p>
             </div>
             <button
-              onClick={() => setOpen(false)}
+              onClick={closeChat}
               className="text-indigo-200 hover:text-white transition-colors"
             >
               <ChevronDown className="w-5 h-5" />

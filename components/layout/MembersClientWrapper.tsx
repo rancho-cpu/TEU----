@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
-import { Search, UserPlus, Shield, User, Users, UserMinus, Plus, RefreshCw, UserCheck, Phone } from 'lucide-react'
+import { Search, UserPlus, Shield, User, Users, UserMinus, Plus, RefreshCw, UserCheck, Phone, Download } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface MembersClientWrapperProps {
@@ -50,8 +50,44 @@ export function MembersClientWrapper({
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [candidateSearch, setCandidateSearch] = useState('')
   const [syncing, setSyncing] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   const supabase = createClient()
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const XLSX = await import('xlsx')
+      const wb = XLSX.utils.book_new()
+
+      const rows = members.map((m) => {
+        const p = m.profile as (Profile & { phone?: string | null }) | undefined
+        const base = {
+          '이름': p?.name ?? '이름 없음',
+          '이메일': p?.email ?? '',
+          '역할': p?.role === 'admin' ? '관리자' : '수강생',
+          '가입일': new Date(m.joined_at).toLocaleDateString('ko-KR'),
+        }
+        if (isAdmin) {
+          return { ...{ '이름': base['이름'], '이메일': base['이메일'], '휴대폰': p?.phone ?? '' }, ...{ '역할': base['역할'], '가입일': base['가입일'] } }
+        }
+        return base
+      })
+
+      const ws = XLSX.utils.json_to_sheet(rows)
+      if (isAdmin) {
+        ws['!cols'] = [{ wch: 16 }, { wch: 28 }, { wch: 16 }, { wch: 10 }, { wch: 14 }]
+      } else {
+        ws['!cols'] = [{ wch: 16 }, { wch: 28 }, { wch: 10 }, { wch: 14 }]
+      }
+      XLSX.utils.book_append_sheet(wb, ws, '구성원 목록')
+
+      const date = new Date().toISOString().slice(0, 10)
+      XLSX.writeFile(wb, `구성원_${date}.xlsx`)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const handleSyncProfiles = async () => {
     if (!confirm('가입된 모든 사용자를 이 기수 구성원으로 추가하시겠습니까?')) return
@@ -194,18 +230,29 @@ export function MembersClientWrapper({
           </div>
           <p className="text-sm text-gray-500">총 {members.length}명</p>
         </div>
-        {isAdmin && (
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handleSyncProfiles} disabled={syncing} className="flex items-center gap-2">
-              <UserCheck className="w-4 h-4" />
-              {syncing ? '동기화 중...' : '구성원 동기화'}
-            </Button>
-            <Button onClick={openInvite} className="flex items-center gap-2">
-              <UserPlus className="w-4 h-4" />
-              멤버 추가
-            </Button>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleExport}
+            disabled={exporting}
+            className="flex items-center gap-2 text-green-700 border-green-300 hover:bg-green-50"
+          >
+            <Download className="w-4 h-4" />
+            {exporting ? '내보내는 중...' : '엑셀 내보내기'}
+          </Button>
+          {isAdmin && (
+            <>
+              <Button variant="outline" onClick={handleSyncProfiles} disabled={syncing} className="flex items-center gap-2">
+                <UserCheck className="w-4 h-4" />
+                {syncing ? '동기화 중...' : '구성원 동기화'}
+              </Button>
+              <Button onClick={openInvite} className="flex items-center gap-2">
+                <UserPlus className="w-4 h-4" />
+                멤버 추가
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Search */}
