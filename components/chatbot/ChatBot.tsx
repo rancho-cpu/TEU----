@@ -132,7 +132,6 @@ export function ChatBot({ cohortId }: Props) {
   ])
   const [input, setInput] = useState('')
   const [customFaqs, setCustomFaqs] = useState<Faq[]>([])
-  const [showQuickButtons, setShowQuickButtons] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -199,7 +198,6 @@ export function ChatBot({ cohortId }: Props) {
         : '😅 죄송해요, 해당 질문에 대한 답변을 찾지 못했어요.\n\n다른 키워드로 다시 질문해 주시거나, 운영진에게 직접 문의해 주세요!\n\n**자주 묻는 질문**을 아래 버튼에서 선택해 보세요.',
     }
     setMessages((prev) => [...prev, userMsg, botMsg])
-    setShowQuickButtons(false)
   }
 
   const handleSend = () => {
@@ -294,33 +292,34 @@ export function ChatBot({ cohortId }: Props) {
               </div>
             ))}
 
-            {/* 빠른 질문 버튼 */}
-            {showQuickButtons && (
-              <div className="flex flex-wrap gap-2 pt-1">
-                {QUICK_QUESTIONS.map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => handleQuick(q)}
-                    className="text-xs bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-full px-3 py-1.5 transition-colors shadow-sm"
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-            )}
-
             <div ref={bottomRef} />
           </div>
 
+          {/* 빠른 질문 칩 — 입력창 위 항상 표시 */}
+          <div className="px-3 pt-2.5 pb-1 border-t border-gray-100 bg-white">
+            <p className="text-[10px] text-gray-400 font-medium mb-1.5 px-1">자주 묻는 질문</p>
+            <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+              {QUICK_QUESTIONS.map((q) => (
+                <button
+                  key={q}
+                  onClick={() => handleQuick(q)}
+                  className="flex-shrink-0 text-xs bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-100 rounded-full px-3 py-1.5 transition-colors whitespace-nowrap"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* 입력 영역 */}
-          <div className="px-3 py-3 border-t border-gray-100 bg-white">
+          <div className="px-3 pt-1.5 pb-3 bg-white">
             <div className="flex gap-2 items-center">
               <input
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                placeholder="질문을 입력하세요..."
+                placeholder="직접 질문을 입력하세요..."
                 className="flex-1 text-sm bg-gray-100 rounded-full px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-300 transition-all"
               />
               <button
