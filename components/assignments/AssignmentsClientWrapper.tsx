@@ -333,32 +333,34 @@ export function AssignmentsClientWrapper({
                 const dl = formatDeadline(a.deadline)
                 return (
                   <div key={a.id} className={cn(
-                    'bg-white rounded-xl border p-5 transition-all',
+                    'bg-white rounded-xl border transition-all',
                     a.user_submitted ? 'border-green-200' : 'border-gray-200'
                   )}>
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 mt-0.5">
-                        {a.user_submitted
-                          ? <CheckCircle2 className="w-5 h-5 text-green-500" />
-                          : <Circle className="w-5 h-5 text-gray-300" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <h3 className="font-semibold text-gray-900">{a.title}</h3>
-                            {a.description && (
-                              <p className="text-sm text-gray-500 mt-1 whitespace-pre-wrap">{a.description}</p>
-                            )}
-                            {dl && (
-                              <p className={cn('text-xs mt-2 flex items-center gap-1', dl.color)}>
-                                <Calendar className="w-3.5 h-3.5" />
-                                {dl.str} · <span className="font-medium">{dl.label}</span>
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* 카드 상단 — 제목 + 관리자 버튼 */}
+                    <div className="p-5">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 mt-0.5">
+                          {a.user_submitted
+                            ? <CheckCircle2 className="w-5 h-5 text-green-500" />
+                            : <Circle className="w-5 h-5 text-gray-300" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-gray-900">{a.title}</h3>
+                              {a.description && (
+                                <p className="text-sm text-gray-500 mt-1 whitespace-pre-wrap">{a.description}</p>
+                              )}
+                              {dl && (
+                                <p className={cn('text-xs mt-2 flex items-center gap-1', dl.color)}>
+                                  <Calendar className="w-3.5 h-3.5" />
+                                  {dl.str} · <span className="font-medium">{dl.label}</span>
+                                </p>
+                              )}
+                            </div>
+                            {/* 관리자 버튼만 오른쪽 상단에 */}
                             {isAdmin && (
-                              <>
+                              <div className="flex items-center gap-2 flex-shrink-0">
                                 <button
                                   onClick={() => openView(a)}
                                   className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 px-2.5 py-1.5 rounded-lg border border-indigo-200 hover:bg-indigo-50 transition-colors"
@@ -369,29 +371,35 @@ export function AssignmentsClientWrapper({
                                 <button onClick={() => handleDelete(a.id)} className="text-gray-400 hover:text-red-500 transition-colors">
                                   <Trash2 className="w-4 h-4" />
                                 </button>
-                              </>
-                            )}
-                            {!isAdmin && (
-                              a.user_submitted ? (
-                                <button
-                                  onClick={() => setMyViewTarget(a)}
-                                  className="text-xs text-green-600 hover:text-green-800 px-2.5 py-1.5 rounded-lg border border-green-200 hover:bg-green-50 transition-colors font-medium"
-                                >
-                                  제출 완료 · 확인
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => openSubmit(a)}
-                                  className="text-xs text-indigo-600 hover:text-indigo-800 px-2.5 py-1.5 rounded-lg border border-indigo-300 hover:bg-indigo-50 transition-colors font-medium"
-                                >
-                                  제출하기
-                                </button>
-                              )
+                              </div>
                             )}
                           </div>
                         </div>
                       </div>
                     </div>
+
+                    {/* 학생용 — 카드 하단 제출 버튼 (크고 명확하게) */}
+                    {!isAdmin && (
+                      <div className="px-5 pb-4">
+                        {a.user_submitted ? (
+                          <button
+                            onClick={() => setMyViewTarget(a)}
+                            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-green-200 bg-green-50 hover:bg-green-100 text-sm font-medium text-green-700 transition-colors"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            제출 완료 — 내 제출물 보기
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => openSubmit(a)}
+                            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-sm font-medium text-white transition-colors"
+                          >
+                            <PenLine className="w-4 h-4" />
+                            작성하고 제출하기
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -427,6 +435,7 @@ export function AssignmentsClientWrapper({
                     survey={s}
                     responseCount={isAdmin ? (responseCounts[s.id] ?? 0) : undefined}
                     isAdmin={isAdmin}
+                    alreadyResponded={!isAdmin && respondedIds.has(s.id)}
                     onDeleted={handleSurveyDeleted}
                     onResponded={handleSurveyResponded}
                   />

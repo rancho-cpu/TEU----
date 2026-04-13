@@ -26,6 +26,7 @@ interface SurveyCardProps {
   survey: Survey
   responseCount?: number
   isAdmin?: boolean
+  alreadyResponded?: boolean
   onDeleted?: (id: string) => void
   onResponded?: (surveyId: string) => void
 }
@@ -164,11 +165,11 @@ function TextResult({ answers }: { answers: string[] }) {
 // ────────────────────────────────────────────────────────────
 // Main component
 // ────────────────────────────────────────────────────────────
-export function SurveyCard({ survey, responseCount, isAdmin, onDeleted, onResponded }: SurveyCardProps) {
+export function SurveyCard({ survey, responseCount, isAdmin, alreadyResponded, onDeleted, onResponded }: SurveyCardProps) {
   const [mode, setMode] = useState<'idle' | 'submit' | 'results'>('idle')
   const [answers, setAnswers] = useState<AnswerMap>({})
   const [submitting, setSubmitting] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
+  const [submitted, setSubmitted] = useState(alreadyResponded ?? false)
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -271,13 +272,17 @@ export function SurveyCard({ survey, responseCount, isAdmin, onDeleted, onRespon
         responsesPayload[`q${i}`] = answers[i] ?? ''
       })
 
-      const { error: insertError } = await supabase.from('survey_responses').insert({
-        survey_id: survey.id,
-        user_id: user.id,
-        responses: responsesPayload,
-      })
+      const { error: upsertError } = await supabase.from('survey_responses').upsert(
+        {
+          survey_id: survey.id,
+          user_id: user.id,
+          responses: responsesPayload,
+          submitted_at: new Date().toISOString(),
+        },
+        { onConflict: 'survey_id,user_id' }
+      )
 
-      if (insertError) throw insertError
+      if (upsertError) throw upsertError
       setSubmitted(true)
       onResponded?.(survey.id)
     } catch (e: unknown) {
@@ -369,6 +374,15 @@ export function SurveyCard({ survey, responseCount, isAdmin, onDeleted, onRespon
                   응답하기
                 </Button>
               </>
+            ) : submitted ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full text-xs text-green-600 border-green-300 bg-green-50 hover:bg-green-100 gap-1"
+                onClick={openSubmit}
+              >
+                ✅ 응답 완료 · 다시 보기
+              </Button>
             ) : (
               <Button
                 size="sm"
