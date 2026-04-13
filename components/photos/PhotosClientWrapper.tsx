@@ -250,6 +250,9 @@ export function PhotosClientWrapper({
     ? photos.filter((p) => p.album_id === activeAlbum.id)
     : photos
 
+  // 앨범 목록 헤더용: DB의 photo_count 합산 (orphan 사진 제외)
+  const totalAlbumPhotos = albums.reduce((sum, a) => sum + (a.photo_count ?? 0), 0)
+
   // ── 렌더 ─────────────────────────────────────────────────────
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -284,7 +287,7 @@ export function PhotosClientWrapper({
               <p className="text-sm text-gray-500 mt-0.5">{activeAlbum.description}</p>
             )}
             <p className="text-sm text-gray-400 mt-0.5">
-              {activeAlbum ? `${visiblePhotos.length}장` : `${albums.length}개 행사 · 총 ${photos.length}장`}
+              {activeAlbum ? `${visiblePhotos.length}장` : `${albums.length}개 행사 · 총 ${totalAlbumPhotos}장`}
             </p>
           </div>
         </div>
@@ -483,18 +486,18 @@ export function PhotosClientWrapper({
               <p className="text-sm mt-1">클릭해서 첫 번째 사진을 올려보세요</p>
             </div>
           ) : (
-            <div className="columns-2 sm:columns-3 lg:columns-4 gap-3 space-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {visiblePhotos.map((photo) => (
                 <div
                   key={photo.id}
-                  className="relative group break-inside-avoid rounded-xl overflow-hidden bg-gray-100 cursor-pointer"
+                  className="relative group aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer"
                   onClick={() => setLightbox(photo)}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={photo.public_url}
                     alt={photo.caption ?? ''}
-                    className="w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                    className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
