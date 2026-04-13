@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { StatsClientWrapper } from '@/components/community/StatsClientWrapper'
+import type { Profile } from '@/types'
 import { BarChart2 } from 'lucide-react'
 
 export default async function StatisticsPage({
@@ -13,6 +14,9 @@ export default async function StatisticsPage({
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
+
+  const { data: profileData } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  const isAdmin = (profileData as Pick<Profile, 'role'> | null)?.role === 'admin'
 
   // 설문 ID 먼저 조회 (survey_responses 필터링에 필요)
   const { data: surveysData } = await supabase
@@ -160,6 +164,7 @@ export default async function StatisticsPage({
         surveyStats={surveyStats}
         joinTrend={joinTrend}
         totalMembers={totalMembers}
+        isAdmin={isAdmin}
       />
     </div>
   )

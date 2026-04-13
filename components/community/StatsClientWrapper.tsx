@@ -44,6 +44,7 @@ interface Props {
   surveyStats: SurveyStatItem[]
   joinTrend: JoinTrendItem[]
   totalMembers: number
+  isAdmin: boolean
 }
 
 const BLUE_SHADES = ['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe']
@@ -65,7 +66,7 @@ function getRateTextColor(pct: number) {
 }
 
 export function StatsClientWrapper({
-  assignmentStats, memberStats, surveyStats, joinTrend, totalMembers,
+  assignmentStats, memberStats, surveyStats, joinTrend, totalMembers, isAdmin,
 }: Props) {
   const [tab, setTab] = useState<'member' | 'assignment'>('member')
   const [search, setSearch] = useState('')
@@ -139,16 +140,18 @@ export function StatsClientWrapper({
             <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
             과제 제출률
           </h2>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleExport}
-            disabled={exporting}
-            className="ml-auto mr-2 h-7 gap-1.5 text-xs text-green-700 border-green-300 hover:bg-green-50"
-          >
-            <Download className="w-3.5 h-3.5" />
-            {exporting ? '내보내는 중...' : '엑셀 내보내기'}
-          </Button>
+          {isAdmin && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleExport}
+              disabled={exporting}
+              className="ml-auto mr-2 h-7 gap-1.5 text-xs text-green-700 border-green-300 hover:bg-green-50"
+            >
+              <Download className="w-3.5 h-3.5" />
+              {exporting ? '내보내는 중...' : '엑셀 내보내기'}
+            </Button>
+          )}
           <div className="flex gap-1 border border-gray-200 rounded-lg p-0.5">
             <button
               onClick={() => setTab('member')}

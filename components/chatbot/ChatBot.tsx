@@ -137,26 +137,32 @@ export function ChatBot({ cohortId }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   // ── 뒤로가기 버튼으로 채팅창 닫기 ───────────────────────────
+  // capture: true → Next.js App Router 보다 먼저 이벤트 수신
+  // 컴포넌트 마운트 시 한 번만 등록, functional update로 stale closure 방지
+  useEffect(() => {
+    const onPopState = (e: PopStateEvent) => {
+      setOpen((isOpen) => {
+        if (isOpen) {
+          // 챗봇이 열린 상태에서 뒤로가기 → 채팅창만 닫고 페이지 이동 차단
+          e.stopImmediatePropagation()
+          return false
+        }
+        return false
+      })
+    }
+    window.addEventListener('popstate', onPopState, { capture: true })
+    return () => window.removeEventListener('popstate', onPopState, { capture: true })
+  }, []) // 마운트 1회만
+
   const openChat = () => {
-    history.pushState({ chatbot: true }, '')
+    // 현재 URL 그대로 히스토리 항목 추가 → 뒤로가기 시 같은 페이지 URL로 pop
+    history.pushState({ chatbot: true }, document.title, window.location.href)
     setOpen(true)
   }
 
   const closeChat = () => {
     setOpen(false)
   }
-
-  useEffect(() => {
-    const onPopState = (e: PopStateEvent) => {
-      if (open) {
-        // 뒤로가기 시 채팅창만 닫기 (페이지 이동 방지)
-        setOpen(false)
-        e.stopImmediatePropagation?.()
-      }
-    }
-    window.addEventListener('popstate', onPopState)
-    return () => window.removeEventListener('popstate', onPopState)
-  }, [open])
 
   // 커스텀 FAQ 불러오기
   useEffect(() => {

@@ -230,29 +230,27 @@ export function MembersClientWrapper({
           </div>
           <p className="text-sm text-gray-500">총 {members.length}명</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={handleExport}
-            disabled={exporting}
-            className="flex items-center gap-2 text-green-700 border-green-300 hover:bg-green-50"
-          >
-            <Download className="w-4 h-4" />
-            {exporting ? '내보내는 중...' : '엑셀 내보내기'}
-          </Button>
-          {isAdmin && (
-            <>
-              <Button variant="outline" onClick={handleSyncProfiles} disabled={syncing} className="flex items-center gap-2">
-                <UserCheck className="w-4 h-4" />
-                {syncing ? '동기화 중...' : '구성원 동기화'}
-              </Button>
-              <Button onClick={openInvite} className="flex items-center gap-2">
-                <UserPlus className="w-4 h-4" />
-                멤버 추가
-              </Button>
-            </>
-          )}
-        </div>
+        {isAdmin && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              disabled={exporting}
+              className="flex items-center gap-2 text-green-700 border-green-300 hover:bg-green-50"
+            >
+              <Download className="w-4 h-4" />
+              {exporting ? '내보내는 중...' : '엑셀 내보내기'}
+            </Button>
+            <Button variant="outline" onClick={handleSyncProfiles} disabled={syncing} className="flex items-center gap-2">
+              <UserCheck className="w-4 h-4" />
+              {syncing ? '동기화 중...' : '구성원 동기화'}
+            </Button>
+            <Button onClick={openInvite} className="flex items-center gap-2">
+              <UserPlus className="w-4 h-4" />
+              멤버 추가
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Search */}
