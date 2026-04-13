@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import {
   ImagePlus, Trash2, X, ZoomIn, Loader2,
   FolderOpen, Plus, ChevronLeft, Images, Pencil,
+  Download, Archive,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -35,13 +36,14 @@ export function PhotosClientWrapper({
   const [photos, setPhotos] = useState<PhotoWithUrl[]>(initialPhotos)
   const [albums, setAlbums] = useState<PhotoAlbum[]>(initialAlbums)
 
-  // 현재 보고 있는 앨범 (null = 전체 목록)
   const [activeAlbum, setActiveAlbum] = useState<PhotoAlbum | null>(null)
 
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [lightbox, setLightbox] = useState<PhotoWithUrl | null>(null)
+  const [downloading, setDownloading] = useState(false)
+  const [bulkDownloading, setBulkDownloading] = useState(false)
 
   // 앨범 생성 폼
   const [createAlbumOpen, setCreateAlbumOpen] = useState(false)
@@ -141,14 +143,12 @@ export function PhotosClientWrapper({
         const newPhoto: PhotoWithUrl = { ...data, public_url: getUrl(data.storage_path) }
         setPhotos((prev) => [newPhoto, ...prev])
 
-        // 앨범 photo_count 업데이트
         if (activeAlbum) {
           setAlbums((prev) =>
             prev.map((a) => a.id === activeAlbum.id ? { ...a, photo_count: (a.photo_count ?? 0) + 1 } : a)
           )
         }
 
-        // 앨범 커버가 없으면 첫 사진으로 설정
         if (activeAlbum && !activeAlbum.cover_path) {
           await supabase.from('photo_albums').update({ cover_path: path }).eq('id', activeAlbum.id)
           setAlbums((prev) => prev.map((a) => a.id === activeAlbum.id ? { ...a, cover_path: path } : a))
@@ -182,9 +182,70 @@ export function PhotosClientWrapper({
     }
   }
 
+  // ── 개별 사진 다운로드 ────────────────────────────────────────
+  const handleDownload = async (photo: PhotoWithUrl, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    setDownloading(true)
+    try {
+      const res = await fetch(photo.public_url)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const ext = photo.storage_path.split('.').pop() ?? 'jpg'
+      a.download = `photo_${photo.id.slice(0, 8)}.${ext}`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch {
+      alert('다운로드 실패')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  // ── 전체 ZIP 다운로드 ─────────────────────────────────────────
+  const handleBulkDownload = async () => {
+    if (visiblePhotos.length === 0) return
+    setBulkDownloading(true)
+    try {
+      const JSZip = (await import('jszip')).default
+      const zip = new JSZip()
+      const folderName = activeAlbum?.name ?? '사진'
+      const folder = zip.folder(folderName)!
+
+      await Promise.all(
+        visiblePhotos.map(async (photo, i) => {
+          try {
+            const res = await fetch(photo.public_url)
+            const blob = await res.blob()
+            const ext = photo.storage_path.split('.').pop() ?? 'jpg'
+            folder.file(`${String(i + 1).padStart(3, '0')}.${ext}`, blob)
+          } catch {
+            // 개별 실패는 무시
+          }
+        })
+      )
+
+      const content = await zip.generateAsync({ type: 'blob' })
+      const url = URL.createObjectURL(content)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${folderName}.zip`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch {
+      alert('ZIP 다운로드 실패')
+    } finally {
+      setBulkDownloading(false)
+    }
+  }
+
   const canDelete = (photo: Photo) => isAdmin || photo.user_id === currentUserId
 
-  // 현재 보이는 사진 목록
   const visiblePhotos = activeAlbum
     ? photos.filter((p) => p.album_id === activeAlbum.id)
     : photos
@@ -231,21 +292,46 @@ export function PhotosClientWrapper({
         <div className="flex items-center gap-2">
           {uploadError && <span className="text-xs text-red-500 max-w-xs text-right">{uploadError}</span>}
 
-          {/* 앨범 안에 있을 때: 이름 수정 + 삭제 (관리자) */}
-          {activeAlbum && isAdmin && (
+          {/* 앨범 안에 있을 때 */}
+          {activeAlbum && (
             <>
-              <button
-                onClick={() => { setEditingAlbum(activeAlbum); setEditName(activeAlbum.name); setEditDesc(activeAlbum.description ?? '') }}
-                className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-              >
-                <Pencil className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handleDeleteAlbum(activeAlbum)}
-                className="p-2 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              {/* 전체 다운로드 */}
+              {visiblePhotos.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={handleBulkDownload}
+                  disabled={bulkDownloading}
+                >
+                  {bulkDownloading
+                    ? <><Loader2 className="w-4 h-4 animate-spin" />ZIP 생성 중...</>
+                    : <><Archive className="w-4 h-4" />전체 다운로드</>
+                  }
+                </Button>
+              )}
+
+              {isAdmin && (
+                <>
+                  <button
+                    onClick={() => { setEditingAlbum(activeAlbum); setEditName(activeAlbum.name); setEditDesc(activeAlbum.description ?? '') }}
+                    className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteAlbum(activeAlbum)}
+                    className="p-2 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+
+              <Button size="sm" className="gap-1.5" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+                {uploading ? '업로드 중...' : '사진 추가'}
+              </Button>
             </>
           )}
 
@@ -254,14 +340,6 @@ export function PhotosClientWrapper({
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setCreateAlbumOpen(true)}>
               <Plus className="w-4 h-4" />
               행사 추가
-            </Button>
-          )}
-
-          {/* 사진 추가: 앨범 안에 있을 때만 */}
-          {activeAlbum && (
-            <Button size="sm" className="gap-1.5" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
-              {uploading ? '업로드 중...' : '사진 추가'}
             </Button>
           )}
 
@@ -369,15 +447,14 @@ export function PhotosClientWrapper({
                         </div>
                       )}
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                      {/* 사진 수 뱃지 */}
-                      <span className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">
-                        {album.photo_count ?? 0}장
-                      </span>
                     </div>
 
-                    {/* 앨범 이름 */}
+                    {/* 앨범 이름 + 장 수 */}
                     <div className="p-3">
-                      <p className="font-medium text-sm text-gray-800 truncate">{album.name}</p>
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="font-medium text-sm text-gray-800 truncate">{album.name}</p>
+                        <span className="text-xs text-gray-400 flex-shrink-0">{album.photo_count ?? 0}장</span>
+                      </div>
                       {album.description && (
                         <p className="text-xs text-gray-400 truncate mt-0.5">{album.description}</p>
                       )}
@@ -420,25 +497,32 @@ export function PhotosClientWrapper({
                     className="w-full object-cover transition-transform duration-200 group-hover:scale-105"
                     loading="lazy"
                   />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                    <ZoomIn className="w-7 h-7 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
                   <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                     <div className="flex items-end justify-between">
-                      <p className="text-xs text-white/80 truncate max-w-[75%]">
+                      <p className="text-xs text-white/80 truncate max-w-[60%]">
                         {(photo.profile as { name?: string | null } | undefined)?.name ?? ''}
                       </p>
-                      {canDelete(photo) && (
+                      <div className="flex items-center gap-1">
                         <button
-                          onClick={(ev) => { ev.stopPropagation(); handleDelete(photo) }}
-                          disabled={deletingId === photo.id}
-                          className="p-1 rounded-md bg-red-500/80 hover:bg-red-600 text-white transition-colors"
+                          onClick={(ev) => handleDownload(photo, ev)}
+                          disabled={downloading}
+                          className="p-1 rounded-md bg-white/20 hover:bg-white/40 text-white transition-colors"
                         >
-                          {deletingId === photo.id
-                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            : <Trash2 className="w-3.5 h-3.5" />}
+                          <Download className="w-3.5 h-3.5" />
                         </button>
-                      )}
+                        {canDelete(photo) && (
+                          <button
+                            onClick={(ev) => { ev.stopPropagation(); handleDelete(photo) }}
+                            disabled={deletingId === photo.id}
+                            className="p-1 rounded-md bg-red-500/80 hover:bg-red-600 text-white transition-colors"
+                          >
+                            {deletingId === photo.id
+                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              : <Trash2 className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -494,6 +578,15 @@ export function PhotosClientWrapper({
               <p className="text-white/50 text-xs">
                 {(lightbox.profile as { name?: string | null } | undefined)?.name} · {new Date(lightbox.created_at).toLocaleDateString('ko-KR')}
               </p>
+              {/* 다운로드 버튼 */}
+              <button
+                onClick={() => handleDownload(lightbox)}
+                disabled={downloading}
+                className="text-white/70 hover:text-white text-xs flex items-center gap-1 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                다운로드
+              </button>
               {canDelete(lightbox) && (
                 <button
                   onClick={() => handleDelete(lightbox)}

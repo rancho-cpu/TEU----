@@ -27,6 +27,7 @@ interface SurveyCardProps {
   responseCount?: number
   isAdmin?: boolean
   onDeleted?: (id: string) => void
+  onResponded?: (surveyId: string) => void
 }
 
 function formatDeadline(dateStr: string | null): string {
@@ -163,7 +164,7 @@ function TextResult({ answers }: { answers: string[] }) {
 // ────────────────────────────────────────────────────────────
 // Main component
 // ────────────────────────────────────────────────────────────
-export function SurveyCard({ survey, responseCount, isAdmin, onDeleted }: SurveyCardProps) {
+export function SurveyCard({ survey, responseCount, isAdmin, onDeleted, onResponded }: SurveyCardProps) {
   const [mode, setMode] = useState<'idle' | 'submit' | 'results'>('idle')
   const [answers, setAnswers] = useState<AnswerMap>({})
   const [submitting, setSubmitting] = useState(false)
@@ -278,6 +279,7 @@ export function SurveyCard({ survey, responseCount, isAdmin, onDeleted }: Survey
 
       if (insertError) throw insertError
       setSubmitted(true)
+      onResponded?.(survey.id)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : '제출 중 오류가 발생했습니다.')
     } finally {

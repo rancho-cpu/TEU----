@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import type { Assignment, AssignmentSubmission, AssignmentAttachment } from '@/types'
+import type { Assignment, AssignmentSubmission, AssignmentAttachment, Survey } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,13 +13,18 @@ import {
 import {
   ClipboardList, Plus, Trash2, CheckCircle2, Circle,
   Calendar, Loader2, Paperclip, X, FileText, FileImage,
-  FileVideo, File, ChevronDown, ChevronUp, Users,
+  FileVideo, File, ChevronDown, ChevronUp, Users, PenLine, ClipboardCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { SurveyCard } from '@/components/contents/SurveyCard'
+import { CreateSurveyModal } from '@/components/contents/CreateSurveyModal'
 
 interface Props {
   cohortId: string
   initialAssignments: Assignment[]
+  initialSurveys: Survey[]
+  surveyResponseCountMap: Record<string, number>
+  myRespondedSurveyIds: string[]
   isAdmin: boolean
   currentUserId: string
   attBaseUrl: string
@@ -53,10 +58,17 @@ function formatDeadline(deadline: string | null) {
 }
 
 export function AssignmentsClientWrapper({
-  cohortId, initialAssignments, isAdmin, currentUserId, attBaseUrl,
+  cohortId, initialAssignments, initialSurveys, surveyResponseCountMap,
+  myRespondedSurveyIds, isAdmin, currentUserId, attBaseUrl,
 }: Props) {
   const supabase = createClient()
   const [assignments, setAssignments] = useState<Assignment[]>(initialAssignments)
+  const [surveys, setSurveys] = useState<Survey[]>(initialSurveys)
+  const [responseCounts, setResponseCounts] = useState<Record<string, number>>(surveyResponseCountMap)
+  const [respondedIds, setRespondedIds] = useState<Set<string>>(new Set(myRespondedSurveyIds))
+
+  // 탭
+  const [tab, setTab] = useState<'write' | 'survey'>('write')
 
   // 과제 생성
   const [createOpen, setCreateOpen] = useState(false)
@@ -64,6 +76,10 @@ export function AssignmentsClientWrapper({
   const [newDesc, setNewDesc] = useState('')
   const [newDeadline, setNewDeadline] = useState('')
   const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+
+  // 설문 생성
+  const [surveyModalOpen, setSurveyModalOpen] = useState(false)
 
   // 제출 모달
   const [submitTarget, setSubmitTarget] = useState<Assignment | null>(null)
@@ -84,11 +100,17 @@ export function AssignmentsClientWrapper({
 
   const getUrl = (path: string) => `${attBaseUrl}${path}`
 
+  // 통합 달성률 (학생용)
+  const totalItems = assignments.length + surveys.length
+  const completedItems = assignments.filter(a => a.user_submitted).length + respondedIds.size
+  const unifiedRate = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0
+
   // ── 과제 생성 ─────────────────────────────────────────────
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTitle.trim()) return
     setCreating(true)
+    setCreateError(null)
     const { data, error } = await supabase
       .from('assignments')
       .insert({
@@ -99,7 +121,9 @@ export function AssignmentsClientWrapper({
         order_index: assignments.length,
       })
       .select().single()
-    if (!error && data) {
+    if (error) {
+      setCreateError(error.message)
+    } else if (data) {
       setAssignments((prev) => [...prev, { ...data, submission_count: 0, user_submitted: false, my_submission: null }])
       setNewTitle(''); setNewDesc(''); setNewDeadline('')
       setCreateOpen(false)
@@ -112,6 +136,19 @@ export function AssignmentsClientWrapper({
     if (!confirm('이 과제를 삭제하시겠습니까?')) return
     await supabase.from('assignments').delete().eq('id', id)
     setAssignments((prev) => prev.filter((a) => a.id !== id))
+  }
+
+  // ── 설문 삭제 ─────────────────────────────────────────────
+  const handleSurveyDeleted = (id: string) => {
+    setSurveys((prev) => prev.filter((s) => s.id !== id))
+  }
+
+  // ── 설문 응답 ─────────────────────────────────────────────
+  const handleSurveyResponded = (surveyId: string) => {
+    setRespondedIds((prev) => new Set([...prev, surveyId]))
+    if (isAdmin) {
+      setResponseCounts((prev) => ({ ...prev, [surveyId]: (prev[surveyId] ?? 0) + 1 }))
+    }
   }
 
   // ── 제출 모달 열기 ────────────────────────────────────────
@@ -146,7 +183,6 @@ export function AssignmentsClientWrapper({
     setSubmitting(true)
     setSubmitError(null)
 
-    // upsert 제출
     const { data: sub, error: subErr } = await supabase
       .from('assignment_submissions')
       .upsert(
@@ -157,7 +193,6 @@ export function AssignmentsClientWrapper({
 
     if (subErr || !sub) { setSubmitError(subErr?.message ?? '제출 실패'); setSubmitting(false); return }
 
-    // 파일 업로드
     const attachments: AssignmentAttachment[] = []
     for (const fp of submitFiles) {
       const ext = fp.file.name.split('.').pop() ?? 'bin'
@@ -202,117 +237,210 @@ export function AssignmentsClientWrapper({
             <ClipboardList className="w-6 h-6 text-indigo-500" />
             과제 제출
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {isAdmin ? `총 ${assignments.length}개 과제` : `${assignments.filter((a) => a.user_submitted).length} / ${assignments.length}개 제출 완료`}
-          </p>
+          {!isAdmin && totalItems > 0 && (
+            <p className="text-sm text-gray-500 mt-1">
+              {completedItems} / {totalItems}개 완료 · 달성률 {unifiedRate}%
+            </p>
+          )}
+          {isAdmin && (
+            <p className="text-sm text-gray-500 mt-1">
+              글쓰기 {assignments.length}개 · 설문 {surveys.length}개
+            </p>
+          )}
         </div>
         {isAdmin && (
-          <Button onClick={() => setCreateOpen(true)} className="gap-1.5">
-            <Plus className="w-4 h-4" /> 과제 추가
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setSurveyModalOpen(true)} className="gap-1.5">
+              <Plus className="w-4 h-4" /> 설문 추가
+            </Button>
+            <Button onClick={() => setCreateOpen(true)} className="gap-1.5">
+              <Plus className="w-4 h-4" /> 과제 추가
+            </Button>
+          </div>
         )}
       </div>
 
-      {/* 제출률 바 (학생용) */}
-      {!isAdmin && assignments.length > 0 && (
+      {/* 통합 제출률 바 (학생용) */}
+      {!isAdmin && totalItems > 0 && (
         <div className="mb-6 bg-indigo-50 rounded-xl p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-indigo-700">내 제출률</span>
-            <span className="text-sm font-bold text-indigo-700">
-              {Math.round((assignments.filter((a) => a.user_submitted).length / assignments.length) * 100)}%
-            </span>
+            <span className="text-sm font-medium text-indigo-700">내 달성률</span>
+            <span className="text-sm font-bold text-indigo-700">{unifiedRate}%</span>
           </div>
           <div className="w-full bg-indigo-100 rounded-full h-2">
             <div
               className="h-full bg-indigo-500 rounded-full transition-all duration-500"
-              style={{ width: `${Math.round((assignments.filter((a) => a.user_submitted).length / assignments.length) * 100)}%` }}
+              style={{ width: `${unifiedRate}%` }}
             />
+          </div>
+          <div className="flex justify-between mt-2 text-xs text-indigo-500">
+            <span>글쓰기 {assignments.filter(a => a.user_submitted).length}/{assignments.length}</span>
+            <span>설문 {respondedIds.size}/{surveys.length}</span>
           </div>
         </div>
       )}
 
-      {/* 과제 목록 */}
-      {assignments.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 text-gray-400">
-          <ClipboardList className="w-12 h-12 mb-3 opacity-30" />
-          <p className="text-base font-medium">아직 과제가 없습니다</p>
-          {isAdmin && <p className="text-sm mt-1 cursor-pointer text-indigo-400 hover:underline" onClick={() => setCreateOpen(true)}>+ 첫 번째 과제를 추가해보세요</p>}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {assignments.map((a) => {
-            const dl = formatDeadline(a.deadline)
-            return (
-              <div key={a.id} className={cn(
-                'bg-white rounded-xl border p-5 transition-all',
-                a.user_submitted ? 'border-green-200' : 'border-gray-200'
-              )}>
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 mt-0.5">
-                    {a.user_submitted
-                      ? <CheckCircle2 className="w-5 h-5 text-green-500" />
-                      : <Circle className="w-5 h-5 text-gray-300" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{a.title}</h3>
-                        {a.description && (
-                          <p className="text-sm text-gray-500 mt-1 whitespace-pre-wrap">{a.description}</p>
-                        )}
-                        {dl && (
-                          <p className={cn('text-xs mt-2 flex items-center gap-1', dl.color)}>
-                            <Calendar className="w-3.5 h-3.5" />
-                            {dl.str} · <span className="font-medium">{dl.label}</span>
-                          </p>
-                        )}
+      {/* 탭 */}
+      <div className="flex gap-1 mb-5 border border-gray-200 rounded-lg p-0.5 w-fit">
+        <button
+          onClick={() => setTab('write')}
+          className={cn(
+            'flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
+            tab === 'write' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-gray-700'
+          )}
+        >
+          <PenLine className="w-4 h-4" />
+          글쓰기 과제
+          {assignments.length > 0 && (
+            <span className={cn('text-xs rounded-full px-1.5 py-0.5 ml-0.5',
+              tab === 'write' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+            )}>{assignments.length}</span>
+          )}
+        </button>
+        <button
+          onClick={() => setTab('survey')}
+          className={cn(
+            'flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
+            tab === 'survey' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-gray-700'
+          )}
+        >
+          <ClipboardCheck className="w-4 h-4" />
+          설문
+          {surveys.length > 0 && (
+            <span className={cn('text-xs rounded-full px-1.5 py-0.5 ml-0.5',
+              tab === 'survey' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+            )}>{surveys.length}</span>
+          )}
+        </button>
+      </div>
+
+      {/* ── 글쓰기 과제 탭 ── */}
+      {tab === 'write' && (
+        <>
+          {assignments.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 text-gray-400">
+              <PenLine className="w-12 h-12 mb-3 opacity-30" />
+              <p className="text-base font-medium">아직 글쓰기 과제가 없습니다</p>
+              {isAdmin && (
+                <p className="text-sm mt-1 cursor-pointer text-indigo-400 hover:underline" onClick={() => setCreateOpen(true)}>
+                  + 첫 번째 과제를 추가해보세요
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {assignments.map((a) => {
+                const dl = formatDeadline(a.deadline)
+                return (
+                  <div key={a.id} className={cn(
+                    'bg-white rounded-xl border p-5 transition-all',
+                    a.user_submitted ? 'border-green-200' : 'border-gray-200'
+                  )}>
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 mt-0.5">
+                        {a.user_submitted
+                          ? <CheckCircle2 className="w-5 h-5 text-green-500" />
+                          : <Circle className="w-5 h-5 text-gray-300" />}
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {isAdmin && (
-                          <>
-                            <button
-                              onClick={() => openView(a)}
-                              className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 px-2.5 py-1.5 rounded-lg border border-indigo-200 hover:bg-indigo-50 transition-colors"
-                            >
-                              <Users className="w-3.5 h-3.5" />
-                              {a.submission_count}명 제출
-                            </button>
-                            <button onClick={() => handleDelete(a.id)} className="text-gray-400 hover:text-red-500 transition-colors">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
-                        {!isAdmin && (
-                          a.user_submitted ? (
-                            <button
-                              onClick={() => setMyViewTarget(a)}
-                              className="text-xs text-green-600 hover:text-green-800 px-2.5 py-1.5 rounded-lg border border-green-200 hover:bg-green-50 transition-colors font-medium"
-                            >
-                              제출 완료 · 확인
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => openSubmit(a)}
-                              className="text-xs text-indigo-600 hover:text-indigo-800 px-2.5 py-1.5 rounded-lg border border-indigo-300 hover:bg-indigo-50 transition-colors font-medium"
-                            >
-                              제출하기
-                            </button>
-                          )
-                        )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <h3 className="font-semibold text-gray-900">{a.title}</h3>
+                            {a.description && (
+                              <p className="text-sm text-gray-500 mt-1 whitespace-pre-wrap">{a.description}</p>
+                            )}
+                            {dl && (
+                              <p className={cn('text-xs mt-2 flex items-center gap-1', dl.color)}>
+                                <Calendar className="w-3.5 h-3.5" />
+                                {dl.str} · <span className="font-medium">{dl.label}</span>
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {isAdmin && (
+                              <>
+                                <button
+                                  onClick={() => openView(a)}
+                                  className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 px-2.5 py-1.5 rounded-lg border border-indigo-200 hover:bg-indigo-50 transition-colors"
+                                >
+                                  <Users className="w-3.5 h-3.5" />
+                                  {a.submission_count}명 제출
+                                </button>
+                                <button onClick={() => handleDelete(a.id)} className="text-gray-400 hover:text-red-500 transition-colors">
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
+                            {!isAdmin && (
+                              a.user_submitted ? (
+                                <button
+                                  onClick={() => setMyViewTarget(a)}
+                                  className="text-xs text-green-600 hover:text-green-800 px-2.5 py-1.5 rounded-lg border border-green-200 hover:bg-green-50 transition-colors font-medium"
+                                >
+                                  제출 완료 · 확인
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => openSubmit(a)}
+                                  className="text-xs text-indigo-600 hover:text-indigo-800 px-2.5 py-1.5 rounded-lg border border-indigo-300 hover:bg-indigo-50 transition-colors font-medium"
+                                >
+                                  제출하기
+                                </button>
+                              )
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── 설문 탭 ── */}
+      {tab === 'survey' && (
+        <>
+          {surveys.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 text-gray-400">
+              <ClipboardCheck className="w-12 h-12 mb-3 opacity-30" />
+              <p className="text-base font-medium">아직 설문이 없습니다</p>
+              {isAdmin && (
+                <p className="text-sm mt-1 cursor-pointer text-indigo-400 hover:underline" onClick={() => setSurveyModalOpen(true)}>
+                  + 첫 번째 설문을 추가해보세요
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {surveys.map((s) => (
+                <div key={s.id} className="relative">
+                  {/* 응답 완료 배지 (학생) */}
+                  {!isAdmin && respondedIds.has(s.id) && (
+                    <div className="absolute -top-2 -right-2 z-10 bg-green-500 text-white text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> 완료
+                    </div>
+                  )}
+                  <SurveyCard
+                    survey={s}
+                    responseCount={isAdmin ? (responseCounts[s.id] ?? 0) : undefined}
+                    isAdmin={isAdmin}
+                    onDeleted={handleSurveyDeleted}
+                    onResponded={handleSurveyResponded}
+                  />
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* ── 과제 생성 모달 ── */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>새 과제 추가</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>새 글쓰기 과제 추가</DialogTitle></DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4 mt-2">
             <div className="space-y-2">
               <Label className="text-sm font-medium">과제명</Label>
@@ -326,6 +454,7 @@ export function AssignmentsClientWrapper({
               <Label className="text-sm font-medium">마감일 <span className="text-gray-400 font-normal">(선택)</span></Label>
               <Input type="datetime-local" value={newDeadline} onChange={(e) => setNewDeadline(e.target.value)} className="text-sm" />
             </div>
+            {createError && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{createError}</p>}
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>취소</Button>
               <Button type="submit" disabled={creating || !newTitle.trim()}>
@@ -335,6 +464,19 @@ export function AssignmentsClientWrapper({
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* ── 설문 생성 모달 ── */}
+      <CreateSurveyModal
+        cohortId={cohortId}
+        open={surveyModalOpen}
+        onClose={() => setSurveyModalOpen(false)}
+        onCreated={(s) => {
+          setSurveys((prev) => [...prev, s])
+          setResponseCounts((prev) => ({ ...prev, [s.id]: 0 }))
+          setSurveyModalOpen(false)
+          setTab('survey')
+        }}
+      />
 
       {/* ── 학생 제출 모달 ── */}
       <Dialog open={!!submitTarget} onOpenChange={() => setSubmitTarget(null)}>

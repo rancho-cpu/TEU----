@@ -14,10 +14,18 @@ export default async function StatisticsPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  // 설문 ID 먼저 조회 (survey_responses 필터링에 필요)
+  const { data: surveysData } = await supabase
+    .from('surveys')
+    .select('id, title')
+    .eq('cohort_id', cohortId)
+    .order('created_at', { ascending: true })
+
+  const surveyIds = (surveysData ?? []).map((s: { id: string }) => s.id)
+
   const [
     { data: assignmentsData },
     { data: allSubmissionsData },
-    { data: surveysData },
     { data: surveyResponsesData },
     { data: membersData },
   ] = await Promise.all([
@@ -29,19 +37,12 @@ export default async function StatisticsPage({
     supabase
       .from('assignment_submissions')
       .select('assignment_id, user_id'),
-    supabase
-      .from('surveys')
-      .select('id, title')
-      .eq('cohort_id', cohortId)
-      .order('created_at', { ascending: true }),
-    supabase
-      .from('survey_responses')
-      .select('survey_id')
-      .in(
-        'survey_id',
-        (await supabase.from('surveys').select('id').eq('cohort_id', cohortId))
-          .data?.map((s: { id: string }) => s.id) ?? []
-      ),
+    surveyIds.length > 0
+      ? supabase
+          .from('survey_responses')
+          .select('survey_id, user_id')
+          .in('survey_id', surveyIds)
+      : Promise.resolve({ data: [] }),
     supabase
       .from('cohort_members')
       .select('user_id, joined_at, profile:profiles!user_id(id, name, avatar_url, email)')
@@ -62,6 +63,15 @@ export default async function StatisticsPage({
     subByUserAssignment[row.user_id].add(row.assignment_id)
   }
 
+  // 설문 응답 per user
+  const responsesByUser: Record<string, Set<string>> = {} // userId -> Set<surveyId>
+  const responseCountBySurvey: Record<string, number> = {}
+  for (const row of (surveyResponsesData ?? []) as { survey_id: string; user_id: string }[]) {
+    responseCountBySurvey[row.survey_id] = (responseCountBySurvey[row.survey_id] ?? 0) + 1
+    if (!responsesByUser[row.user_id]) responsesByUser[row.user_id] = new Set()
+    responsesByUser[row.user_id].add(row.survey_id)
+  }
+
   // 과제별 제출률
   const assignmentStats = (assignmentsData ?? []).map((a: { id: string; title: string }) => {
     const count = subCountByAssignment[a.id] ?? 0
@@ -74,27 +84,25 @@ export default async function StatisticsPage({
     }
   })
 
-  // 멤버별 제출률
+  // 멤버별 통합 제출률 (글쓰기 + 설문)
+  const totalItems = assignmentIds.length + surveyIds.length
   const memberStats = (membersData ?? []).map((m) => {
     const profile = (m.profile as unknown) as { id: string; name: string | null; avatar_url: string | null; email: string } | null
     const userId = profile?.id ?? (m as { user_id: string }).user_id
-    const submitted = subByUserAssignment[userId]?.size ?? 0
-    const total = assignmentIds.length
+    const assignmentsSubmitted = subByUserAssignment[userId]?.size ?? 0
+    const surveysResponded = responsesByUser[userId]?.size ?? 0
+    const completed = assignmentsSubmitted + surveysResponded
     return {
       user_id: userId,
       name: profile?.name ?? profile?.email ?? '알 수 없음',
       avatar_url: profile?.avatar_url ?? null,
-      submitted,
-      total,
-      percentage: total > 0 ? Math.round((submitted / total) * 100) : 0,
+      submitted: completed,
+      total: totalItems,
+      percentage: totalItems > 0 ? Math.round((completed / totalItems) * 100) : 0,
     }
   }).sort((a, b) => b.percentage - a.percentage)
 
   // 설문 응답 현황
-  const responseCountBySurvey: Record<string, number> = {}
-  for (const row of (surveyResponsesData ?? []) as { survey_id: string }[]) {
-    responseCountBySurvey[row.survey_id] = (responseCountBySurvey[row.survey_id] ?? 0) + 1
-  }
   const surveyStats = (surveysData ?? []).map((s: { id: string; title: string }) => ({
     title: s.title.length > 14 ? s.title.slice(0, 14) + '…' : s.title,
     response_count: responseCountBySurvey[s.id] ?? 0,
@@ -133,11 +141,11 @@ export default async function StatisticsPage({
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
           <p className="text-2xl font-bold text-indigo-600">{assignmentStats.length}</p>
-          <p className="text-xs text-gray-500 mt-1">과제</p>
+          <p className="text-xs text-gray-500 mt-1">글쓰기 과제</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
           <p className="text-2xl font-bold text-green-600">{avgRate}%</p>
-          <p className="text-xs text-gray-500 mt-1">평균 제출률</p>
+          <p className="text-xs text-gray-500 mt-1">평균 달성률</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
           <p className="text-2xl font-bold text-purple-600">{surveyStats.length}</p>
