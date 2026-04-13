@@ -137,32 +137,27 @@ export function ChatBot({ cohortId }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   // ── 뒤로가기 버튼으로 채팅창 닫기 ───────────────────────────
-  // hashchange 이벤트 사용:
-  //   - Next.js App Router는 hashchange를 가로채지 않음
-  //   - pushState/replaceState는 hashchange를 발생시키지 않음
-  //   - 뒤로가기로 hash가 제거될 때만 발생 → 안전하게 채팅창 닫기
+  // window.location.hash 직접 대입은 브라우저 레벨 동작 → Next.js 패치 우회
+  // hashchange의 oldURL/newURL로 "chatbot → 없음" 방향만 정확히 감지
   useEffect(() => {
-    const onHashChange = () => {
-      setOpen((isOpen) => {
-        if (isOpen && window.location.hash !== '#chatbot') return false
-        return isOpen
-      })
+    const onHashChange = (e: HashChangeEvent) => {
+      if (e.oldURL.includes('#chatbot') && !e.newURL.includes('#chatbot')) {
+        setOpen(false)
+      }
     }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
 
   const openChat = () => {
-    // pushState로 #chatbot 추가 → hashchange 발생 안 함, 히스토리만 쌓임
-    const base = window.location.href.split('#')[0]
-    history.pushState(null, '', base + '#chatbot')
+    // location.hash 직접 대입 → 브라우저가 히스토리 항목 추가 + hashchange 발생
+    window.location.hash = 'chatbot'
     setOpen(true)
   }
 
   const closeChat = () => {
-    // replaceState로 hash 제거 → hashchange 발생 안 함, 조용히 닫힘
-    const base = window.location.href.split('#')[0]
-    history.replaceState(null, '', base)
+    // replaceState로 hash만 제거 → hashchange 발생 안 함 → 무한루프 없음
+    history.replaceState(null, '', window.location.pathname + window.location.search)
     setOpen(false)
   }
 
