@@ -76,7 +76,7 @@ export default async function StatisticsPage({
 
   // 멤버별 제출률
   const memberStats = (membersData ?? []).map((m) => {
-    const profile = m.profile as { id: string; name: string | null; avatar_url: string | null; email: string } | null
+    const profile = (m.profile as unknown) as { id: string; name: string | null; avatar_url: string | null; email: string } | null
     const userId = profile?.id ?? (m as { user_id: string }).user_id
     const submitted = subByUserAssignment[userId]?.size ?? 0
     const total = assignmentIds.length
