@@ -491,21 +491,46 @@ export function AssignmentsClientWrapper({
       <Dialog open={!!submitTarget} onOpenChange={() => setSubmitTarget(null)}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-base">{submitTarget?.title}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <PenLine className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+              {submitTarget?.title}
+            </DialogTitle>
           </DialogHeader>
+
+          {/* 과제 설명 (있는 경우) */}
           {submitTarget?.description && (
-            <p className="text-sm text-gray-500 whitespace-pre-wrap -mt-2">{submitTarget.description}</p>
+            <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-4 py-3 -mt-1">
+              <p className="text-xs font-semibold text-indigo-500 mb-1">과제 안내</p>
+              <p className="text-sm text-indigo-900 whitespace-pre-wrap leading-relaxed">{submitTarget.description}</p>
+            </div>
           )}
-          <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+
+          {/* 마감일 */}
+          {submitTarget && (() => {
+            const dl = formatDeadline(submitTarget.deadline)
+            return dl ? (
+              <p className={cn('text-xs flex items-center gap-1 -mt-1', dl.color)}>
+                <Calendar className="w-3.5 h-3.5" />
+                마감: {dl.str} · <span className="font-medium">{dl.label}</span>
+              </p>
+            ) : null
+          })()}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-sm font-medium">제출 내용</Label>
+              <Label className="text-sm font-medium">
+                제출 내용
+                <span className="text-red-400 ml-1">*</span>
+                <span className="text-xs text-gray-400 font-normal ml-1">(텍스트 또는 파일 중 하나 이상 필수)</span>
+              </Label>
               <Textarea
                 value={submitContent}
                 onChange={(e) => setSubmitContent(e.target.value)}
-                placeholder="과제 내용을 작성하거나 링크를 붙여넣으세요..."
-                className="resize-none min-h-[120px] text-sm"
+                placeholder={`여기에 과제 내용을 작성하거나, 아래에 파일을 첨부하세요.\n\n예) 구글 문서 링크, 내용 요약, 소감 등`}
+                className="resize-none min-h-[140px] text-sm"
               />
             </div>
+
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium">파일 첨부 <span className="text-gray-400 font-normal">(최대 5개)</span></Label>
@@ -518,7 +543,7 @@ export function AssignmentsClientWrapper({
               {submitFiles.length === 0 ? (
                 <button type="button" onClick={() => fileInputRef.current?.click()}
                   className="w-full h-12 rounded-lg border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-indigo-300 hover:text-indigo-400 transition-colors flex items-center justify-center gap-2">
-                  <Paperclip className="w-4 h-4" /> 파일 첨부
+                  <Paperclip className="w-4 h-4" /> 클릭해서 파일 첨부 (이미지, PDF, 문서 등)
                 </button>
               ) : (
                 <div className="space-y-1.5">
@@ -540,11 +565,20 @@ export function AssignmentsClientWrapper({
                 </div>
               )}
             </div>
+
             {submitError && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{submitError}</p>}
-            <div className="flex justify-end gap-2">
+
+            <div className="flex justify-end gap-2 pt-1">
               <Button type="button" variant="outline" onClick={() => setSubmitTarget(null)}>취소</Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />제출 중...</> : '제출하기'}
+              <Button
+                type="submit"
+                disabled={submitting || (!submitContent.trim() && submitFiles.length === 0)}
+                className="gap-1.5"
+              >
+                {submitting
+                  ? <><Loader2 className="w-4 h-4 animate-spin" />제출 중...</>
+                  : <><CheckCircle2 className="w-4 h-4" />제출하기</>
+                }
               </Button>
             </div>
           </form>
