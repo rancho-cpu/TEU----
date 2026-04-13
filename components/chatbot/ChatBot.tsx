@@ -137,30 +137,29 @@ export function ChatBot({ cohortId }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   // ── 뒤로가기 버튼으로 채팅창 닫기 ───────────────────────────
-  // capture: true → Next.js App Router 보다 먼저 이벤트 수신
-  // 컴포넌트 마운트 시 한 번만 등록, functional update로 stale closure 방지
+  // URL 해시(#chatbot)를 이용 — Next.js App Router는 hash만 변하면 라우팅하지 않음
   useEffect(() => {
-    const onPopState = (e: PopStateEvent) => {
-      setOpen((isOpen) => {
-        if (isOpen) {
-          // 챗봇이 열린 상태에서 뒤로가기 → 채팅창만 닫고 페이지 이동 차단
-          e.stopImmediatePropagation()
-          return false
-        }
-        return false
-      })
+    const onPopState = () => {
+      // 뒤로가기로 #chatbot 해시가 사라졌을 때 채팅창 닫기
+      if (window.location.hash !== '#chatbot') {
+        setOpen(false)
+      }
     }
-    window.addEventListener('popstate', onPopState, { capture: true })
-    return () => window.removeEventListener('popstate', onPopState, { capture: true })
-  }, []) // 마운트 1회만
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
 
   const openChat = () => {
-    // 현재 URL 그대로 히스토리 항목 추가 → 뒤로가기 시 같은 페이지 URL로 pop
-    history.pushState({ chatbot: true }, document.title, window.location.href)
+    // 현재 경로에 #chatbot 해시 추가 → 히스토리 스택에 쌓임
+    const base = window.location.href.split('#')[0]
+    history.pushState(null, '', base + '#chatbot')
     setOpen(true)
   }
 
   const closeChat = () => {
+    // X 버튼으로 닫을 때 해시 제거 (히스토리 항목은 replaceState로 조용히 제거)
+    const base = window.location.href.split('#')[0]
+    history.replaceState(null, '', base)
     setOpen(false)
   }
 
