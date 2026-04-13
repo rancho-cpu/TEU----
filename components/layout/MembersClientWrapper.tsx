@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
-import { Search, UserPlus, Shield, User, Users, UserMinus, Plus, RefreshCw, UserCheck } from 'lucide-react'
+import { Search, UserPlus, Shield, User, Users, UserMinus, Plus, RefreshCw, UserCheck, Phone } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface MembersClientWrapperProps {
@@ -221,12 +221,23 @@ export function MembersClientWrapper({
 
       {/* Members Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="grid grid-cols-12 gap-4 px-5 py-3 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase tracking-wider">
-          <div className="col-span-4">이름</div>
-          <div className="col-span-4">이메일</div>
-          <div className="col-span-2">역할</div>
-          <div className="col-span-2">가입일</div>
-        </div>
+        {/* 헤더 — 관리자/학생 레이아웃 분기 */}
+        {isAdmin ? (
+          <div className="grid grid-cols-12 gap-3 px-5 py-3 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <div className="col-span-3">이름</div>
+            <div className="col-span-3">이메일</div>
+            <div className="col-span-2 flex items-center gap-1"><Phone className="w-3 h-3" />휴대폰</div>
+            <div className="col-span-2">역할</div>
+            <div className="col-span-2">가입일</div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-12 gap-4 px-5 py-3 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <div className="col-span-4">이름</div>
+            <div className="col-span-4">이메일</div>
+            <div className="col-span-2">역할</div>
+            <div className="col-span-2">가입일</div>
+          </div>
+        )}
 
         {filtered.length === 0 ? (
           <div className="py-12 text-center text-sm text-gray-400">
@@ -234,7 +245,70 @@ export function MembersClientWrapper({
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {paginated.map((member) => (
+            {paginated.map((member) => isAdmin ? (
+              /* 관리자 행 — 휴대폰 포함 */
+              <div
+                key={member.user_id}
+                className="grid grid-cols-12 gap-3 px-5 py-4 items-center hover:bg-gray-50 transition-colors"
+              >
+                <div className="col-span-3 flex items-center gap-3">
+                  <Avatar className="w-8 h-8 flex-shrink-0">
+                    <AvatarImage src={member.profile?.avatar_url ?? undefined} />
+                    <AvatarFallback className="bg-blue-100 text-blue-600 text-xs font-medium">
+                      {getInitials(member.profile?.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {member.profile?.name ?? '이름 없음'}
+                    {member.user_id === currentUserId && (
+                      <span className="ml-1 text-xs text-blue-500">(나)</span>
+                    )}
+                  </p>
+                </div>
+
+                <div className="col-span-3">
+                  <p className="text-sm text-gray-500 truncate">{member.profile?.email ?? '-'}</p>
+                </div>
+
+                <div className="col-span-2">
+                  {(member.profile as Profile & { phone?: string | null })?.phone ? (
+                    <p className="text-sm text-gray-700 font-mono">
+                      {(member.profile as Profile & { phone?: string | null }).phone}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-gray-300">—</p>
+                  )}
+                </div>
+
+                <div className="col-span-2">
+                  <div className="flex items-center gap-2">
+                    <Badge className={`text-xs ${member.profile?.role === 'admin' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                      {member.profile?.role === 'admin'
+                        ? <span className="flex items-center gap-1"><Shield className="w-3 h-3" />관리자</span>
+                        : <span className="flex items-center gap-1"><User className="w-3 h-3" />학생</span>
+                      }
+                    </Badge>
+                    {member.user_id !== currentUserId && (
+                      <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-gray-400 hover:text-gray-700"
+                        onClick={() => handleToggleRole(member)} disabled={togglingId === member.user_id}>
+                        {togglingId === member.user_id ? '...' : '변경'}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="col-span-2 flex items-center justify-between">
+                  <p className="text-xs text-gray-400">{formatDate(member.joined_at)}</p>
+                  {member.user_id !== currentUserId && (
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-300 hover:text-red-500"
+                      onClick={() => handleRemove(member)} disabled={removingId === member.user_id}>
+                      <UserMinus className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* 일반 학생 행 — 휴대폰 없음 */
               <div
                 key={member.user_id}
                 className="grid grid-cols-12 gap-4 px-5 py-4 items-center hover:bg-gray-50 transition-colors"
@@ -253,53 +327,19 @@ export function MembersClientWrapper({
                     )}
                   </p>
                 </div>
-
                 <div className="col-span-4">
                   <p className="text-sm text-gray-500 truncate">{member.profile?.email ?? '-'}</p>
                 </div>
-
                 <div className="col-span-2">
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      className={`text-xs ${
-                        member.profile?.role === 'admin'
-                          ? 'bg-blue-100 text-blue-700 border-blue-200'
-                          : 'bg-gray-100 text-gray-600 border-gray-200'
-                      }`}
-                    >
-                      {member.profile?.role === 'admin' ? (
-                        <span className="flex items-center gap-1"><Shield className="w-3 h-3" />관리자</span>
-                      ) : (
-                        <span className="flex items-center gap-1"><User className="w-3 h-3" />학생</span>
-                      )}
-                    </Badge>
-                    {isAdmin && member.user_id !== currentUserId && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-xs text-gray-400 hover:text-gray-700"
-                        onClick={() => handleToggleRole(member)}
-                        disabled={togglingId === member.user_id}
-                      >
-                        {togglingId === member.user_id ? '...' : '변경'}
-                      </Button>
-                    )}
-                  </div>
+                  <Badge className={`text-xs ${member.profile?.role === 'admin' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                    {member.profile?.role === 'admin'
+                      ? <span className="flex items-center gap-1"><Shield className="w-3 h-3" />관리자</span>
+                      : <span className="flex items-center gap-1"><User className="w-3 h-3" />학생</span>
+                    }
+                  </Badge>
                 </div>
-
-                <div className="col-span-2 flex items-center justify-between">
+                <div className="col-span-2">
                   <p className="text-xs text-gray-400">{formatDate(member.joined_at)}</p>
-                  {isAdmin && member.user_id !== currentUserId && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0 text-gray-300 hover:text-red-500"
-                      onClick={() => handleRemove(member)}
-                      disabled={removingId === member.user_id}
-                    >
-                      <UserMinus className="w-3.5 h-3.5" />
-                    </Button>
-                  )}
                 </div>
               </div>
             ))}

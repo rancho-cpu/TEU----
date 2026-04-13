@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Camera, Loader2, CheckCircle2, User, Mail, Shield, Calendar } from 'lucide-react'
+import { Camera, Loader2, CheckCircle2, User, Mail, Shield, Calendar, Phone } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -30,6 +30,7 @@ export function ProfileClientWrapper({ profile, avatarBaseUrl }: Props) {
 
   const [name, setName] = useState(profile.name ?? '')
   const [bio, setBio] = useState(profile.bio ?? '')
+  const [phone, setPhone] = useState(profile.phone ?? '')
   const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url ?? '')
 
   const [saving, setSaving] = useState(false)
@@ -88,7 +89,7 @@ export function ProfileClientWrapper({ profile, avatarBaseUrl }: Props) {
 
     const { error } = await supabase
       .from('profiles')
-      .update({ name: name.trim() || null, bio: bio.trim() || null })
+      .update({ name: name.trim() || null, bio: bio.trim() || null, phone: phone.trim() || null })
       .eq('id', profile.id)
 
     if (error) {
@@ -178,6 +179,10 @@ export function ProfileClientWrapper({ profile, avatarBaseUrl }: Props) {
                 {profile.email}
               </div>
               <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                <Phone className="w-3.5 h-3.5 flex-shrink-0" />
+                {phone || <span className="text-gray-300">휴대폰 번호 미등록</span>}
+              </div>
+              <div className="flex items-center gap-1.5 text-sm text-gray-500">
                 <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
                 가입일: {new Date(profile.created_at).toLocaleDateString('ko-KR')}
               </div>
@@ -209,6 +214,24 @@ export function ProfileClientWrapper({ profile, avatarBaseUrl }: Props) {
               className="text-sm"
             />
             <p className="text-xs text-gray-400">{name.length}/30</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">
+              휴대폰 번호 <span className="text-gray-400 font-normal text-xs">(운영진에게만 공개)</span>
+            </Label>
+            <Input
+              value={phone}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, '').slice(0, 11)
+                if (digits.length <= 3) setPhone(digits)
+                else if (digits.length <= 7) setPhone(`${digits.slice(0, 3)}-${digits.slice(3)}`)
+                else setPhone(`${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`)
+              }}
+              placeholder="010-0000-0000"
+              inputMode="numeric"
+              className="text-sm font-mono"
+            />
           </div>
 
           <div className="space-y-2">
