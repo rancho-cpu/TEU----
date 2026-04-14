@@ -13,14 +13,14 @@ export async function GET(req: NextRequest) {
 
   const supabase = await createAdminClient()
   const now = new Date()
-  // 50분 ~ 70분 후 마감인 과제 (30분 주기로 실행되므로 20분 버퍼)
-  const windowStart = new Date(now.getTime() + 50 * 60_000)
-  const windowEnd = new Date(now.getTime() + 70 * 60_000)
+  // 매일 오전 8시(KST) 실행 → 오늘~내일 오전 8시 사이 마감 과제 알림
+  const windowStart = now
+  const windowEnd = new Date(now.getTime() + 24 * 60 * 60_000)
 
   // 1. 마감 임박 과제 조회
   const { data: assignments, error: aErr } = await supabase
     .from('assignments')
-    .select('id, cohort_id, title')
+    .select('id, cohort_id, title, deadline')
     .gte('deadline', windowStart.toISOString())
     .lte('deadline', windowEnd.toISOString())
 
@@ -69,11 +69,16 @@ export async function GET(req: NextRequest) {
     if (!unsubmittedIds.length) continue
 
     // 5. 알림 일괄 INSERT
+    const deadline = (assignment as { deadline?: string }).deadline
+    const deadlineStr = deadline
+      ? new Date(deadline).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+      : '오늘'
+
     const rows = unsubmittedIds.map((userId) => ({
       cohort_id: assignment.cohort_id,
       user_id: userId,
-      title: '⏰ 과제 마감 1시간 전',
-      body: `"${assignment.title}" 과제 마감이 1시간 후입니다. 아직 제출하지 않으셨다면 서두르세요!`,
+      title: '⏰ 오늘 마감 과제 알림',
+      body: `"${assignment.title}" 과제가 ${deadlineStr}에 마감됩니다. 아직 제출하지 않으셨다면 서두르세요!`,
       type: 'deadline',
       related_id: assignment.id,
     }))
