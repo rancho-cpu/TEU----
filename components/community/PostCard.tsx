@@ -139,10 +139,14 @@ export function PostCard({
   const [clapped, setClapped] = useState(post.user_clapped ?? false)
   const [clapCount, setClapCount] = useState(post.clap_count ?? 0)
   const [reactionPending, setReactionPending] = useState<'star' | 'clap' | null>(null)
-
+  const [replyingTo, setReplyingTo] = useState<string | null>(null)
+  const [replyText, setReplyText] = useState('')
+  const [submittingReply, setSubmittingReply] = useState(false) 
   const supabase = createClient()
   const canDelete = isAdmin || post.user_id === currentUserId
-
+  const rootComments = comments.filter((comment) => !comment.parent_id)
+  const getReplies = (commentId: string) =>
+  comments.filter((comment) => comment.parent_id === commentId)
   const openEdit = (e: React.MouseEvent) => {
     e.stopPropagation()
     setEditTitle(post.title)
@@ -201,7 +205,12 @@ export function PostCard({
     setSubmittingComment(true)
     const { data, error } = await supabase
       .from('comments')
-      .insert({ post_id: post.id, user_id: currentUserId, content: commentText.trim() })
+      .insert({
+  post_id: post.id,
+  user_id: currentUserId,
+  content: commentText.trim(),
+  parent_id: null,
+})
       .select('*, profile:profiles!user_id(*)')
       .single()
     if (!error && data) {
@@ -215,7 +224,46 @@ export function PostCard({
     }
     setSubmittingComment(false)
   }
+  const handleSubmitReply = async (parentId: string) => {
+  if (!replyText.trim()) return
+  setSubmittingReply(true)
 
+  const replyBody = replyText.trim()
+
+  const { data, error } = await supabase
+    .from('comments')
+    .insert({
+      post_id: post.id,
+      user_id: currentUserId,
+      content: replyBody,
+      parent_id: parentId,
+    })
+    .select('*, profile:profiles!user_id(*)')
+    .single()
+
+  if (!error && data) {
+    setComments((prev) => [...prev, data as Comment])
+    setReplyText('')
+    setReplyingTo(null)
+
+    if (post.user_id && post.user_id !== currentUserId) {
+      const name =
+        currentUserName ||
+        (data as Comment & { profile?: { name?: string } }).profile?.name ||
+        '누군가'
+
+      sendCommunityNotif(
+        cohortId,
+        post.user_id,
+        `↪️ ${name}님이 답글을 남겼어요`,
+        replyBody.slice(0, 60),
+        post.id
+      )
+    }
+  }
+
+  setSubmittingReply(false)
+}
   const handleDeletePost = async () => {
     if (!confirm('이 게시글을 삭제하시겠습니까?')) return
     setDeletingPost(true)
@@ -609,29 +657,102 @@ export function PostCard({
                   첫 번째 댓글을 작성해보세요.
                 </p>
               ) : (
-                <div className="space-y-4">
-                  {comments.map((comment) => (
-                    <div key={comment.id} className="flex gap-3">
-                      <Avatar className="w-7 h-7 flex-shrink-0">
-                        <AvatarImage src={comment.profile?.avatar_url ?? undefined} />
-                        <AvatarFallback className="bg-gray-100 text-gray-600 text-xs">
-                          {getInitials(comment.profile?.name ?? null)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-medium text-gray-800">
-                            {comment.profile?.name ?? '알 수 없음'}
-                          </span>
-                          <span className="text-xs text-gray-400">
-                            {formatTime(comment.created_at)}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-700 leading-relaxed">{comment.content}</p>
+              <div className="space-y-4">
+  {rootComments.map((comment) => {
+    const replies = getReplies(comment.id)
+
+    return (
+      <div key={comment.id} className="space-y-3">
+        <div className="flex gap-3">
+          <Avatar className="w-7 h-7 flex-shrink-0">
+            <AvatarImage src={comment.profile?.avatar_url ?? undefined} />
+            <AvatarFallback className="bg-gray-100 text-gray-600 text-xs">
+              {getInitials(comment.profile?.name ?? null)}
+            </AvatarFallback>
+          </Avatar>
+
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-medium text-gray-800">
+                {comment.profile?.name ?? '알 수 없음'}
+              </span>
+              <span className="text-xs text-gray-400">
+                {formatTime(comment.created_at)}
+              </span>
+            </div>
+
+            <p className="text-sm text-gray-700 leading-relaxed">
+              {comment.content}
+            </p>
+
+            <button
+              type="button"
+              onClick={() =>
+                setReplyingTo((prev) => (prev === comment.id ? null : comment.id))
+              }
+              className="mt-2 text-xs text-gray-500 hover:text-blue-600 transition-colors"
+            >
+              답글 달기
+            </button>
+
+            {replyingTo === comment.id && (
+              <div className="mt-3 flex gap-2">
+                <Textarea
+                  placeholder="답글을 작성하세요..."
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  className="flex-1 min-h-[56px] max-h-[120px] resize-none text-sm bg-white"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                      handleSubmitReply(comment.id)
+                    }
+                  }}
+                />
+                <Button
+                  onClick={() => handleSubmitReply(comment.id)}
+                  disabled={submittingReply || !replyText.trim()}
+                  size="sm"
+                  className="self-end"
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+
+            {replies.length > 0 && (
+              <div className="mt-4 space-y-3 border-l border-gray-200 pl-4">
+                {replies.map((reply) => (
+                  <div key={reply.id} className="flex gap-3">
+                    <Avatar className="w-6 h-6 flex-shrink-0">
+                      <AvatarImage src={reply.profile?.avatar_url ?? undefined} />
+                      <AvatarFallback className="bg-gray-100 text-gray-600 text-[10px]">
+                        {getInitials(reply.profile?.name ?? null)}
+                      </AvatarFallback>
+                    </Avatar>
+
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-medium text-gray-800">
+                          {reply.profile?.name ?? '알 수 없음'}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {formatTime(reply.created_at)}
+                        </span>
                       </div>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {reply.content}
+                      </p>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  })}
+</div>
               )}
             </div>
           </div>
