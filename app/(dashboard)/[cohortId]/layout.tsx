@@ -34,6 +34,7 @@ export default async function DashboardLayout({
         shortcuts={(shortcuts ?? []) as Shortcut[]}
         currentCohort={currentCohort as Cohort}
         profile={profileData as Profile | null}
+        currentUserId={user.id}
       />
       <main className="flex-1 overflow-y-auto">
         {children}

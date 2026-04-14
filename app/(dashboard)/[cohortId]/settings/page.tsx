@@ -17,7 +17,7 @@ export default async function SettingsPage({
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: profileData }, { data: cohortData }, { data: shortcutsData }, { data: faqsData }] =
+  const [{ data: profileData }, { data: cohortData }, { data: shortcutsData }, { data: faqsData }, { data: membersData }] =
     await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('cohorts').select('*').eq('id', cohortId).single(),
@@ -31,6 +31,10 @@ export default async function SettingsPage({
         .select('*')
         .eq('cohort_id', cohortId)
         .order('order_index', { ascending: true }),
+      supabase
+        .from('cohort_members')
+        .select('user_id, profile:profiles!user_id(id, name, email, role)')
+        .eq('cohort_id', cohortId),
     ])
 
   const profile = profileData as Profile | null
@@ -48,12 +52,21 @@ export default async function SettingsPage({
     )
   }
 
+  // student 멤버만 추출
+  const studentMembers = (membersData ?? [])
+    .map((m) => {
+      const p = (m.profile as unknown) as { id: string; name: string | null; email: string; role: string } | null
+      return { userId: m.user_id as string, name: p?.name, email: p?.email, role: p?.role }
+    })
+    .filter((m) => m.role !== 'admin')
+
   return (
     <SettingsClientWrapper
       cohortId={cohortId}
       cohort={cohortData as Cohort}
       initialShortcuts={(shortcutsData ?? []) as Shortcut[]}
       initialFaqs={(faqsData ?? []) as ChatbotFaq[]}
+      studentMembers={studentMembers}
     />
   )
 }

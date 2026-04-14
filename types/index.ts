@@ -244,3 +244,15 @@ export interface Material {
   profile?: Profile | null
   attachments?: MaterialAttachment[]
 }
+
+export interface Notification {
+  id: string
+  cohort_id: string
+  user_id: string
+  title: string
+  body: string | null
+  type: 'manual' | 'deadline'
+  related_id: string | null
+  is_read: boolean
+  created_at: string
+}

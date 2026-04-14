@@ -3,6 +3,10 @@
     {
       "path": "/api/challenges/close",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/deadline-notify",
+      "schedule": "*/30 * * * *"
     }
   ]
 }

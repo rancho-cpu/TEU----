@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import type { Cohort, Profile, Shortcut } from '@/types'
 import { CohortSwitcher } from './CohortSwitcher'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 
 const navItems = [
   { href: 'contents',    label: '콘텐츠',      icon: BookOpen },
@@ -55,9 +56,10 @@ interface SidebarProps {
   shortcuts: Shortcut[]
   currentCohort: Cohort
   profile?: Profile | null
+  currentUserId?: string
 }
 
-export function Sidebar({ cohortId, cohorts, shortcuts, currentCohort, profile }: SidebarProps) {
+export function Sidebar({ cohortId, cohorts, shortcuts, currentCohort, profile, currentUserId }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -165,6 +167,11 @@ export function Sidebar({ cohortId, cohorts, shortcuts, currentCohort, profile }
 
       {/* Profile + Logout */}
       <div className="p-3 border-t border-gray-200 space-y-1">
+        {currentUserId && (
+          <div className="flex justify-end px-1 pb-1">
+            <NotificationBell cohortId={cohortId} currentUserId={currentUserId} />
+          </div>
+        )}
         {/* 내 프로필 */}
         <Link
           href={`/${cohortId}/profile`}
