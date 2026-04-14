@@ -90,7 +90,7 @@ export function MaterialsClientWrapper({ cohortId, initialMaterials, isAdmin }: 
       .select('*, profile:profiles!user_id(*)')
       .single()
 
-    if (error || !data) { setFormError('저장 중 오류가 발생했습니다.'); setSaving(false); return }
+    if (error || !data) { setFormError(`저장 중 오류: ${error?.message ?? '알 수 없는 오류'}`); setSaving(false); return }
 
     const material = data as Material
     const attachments: MaterialAttachment[] = []
