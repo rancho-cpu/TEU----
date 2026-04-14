@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('notifications')
-    .select('*')
+    .select('*, sender:profiles!sender_id(name, avatar_url)')
     .eq('cohort_id', cohortId)
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
     title: title.trim(),
     body: body?.trim() || null,
     type: 'manual',
+    sender_id: user.id,
   }))
 
   // INSERT는 RLS 우회를 위해 순수 service role 클라이언트 사용

@@ -24,7 +24,7 @@ export default async function MaterialsPage({
 
   const { data: materialsData } = await supabase
     .from('materials')
-    .select('*, profile:profiles!user_id(*), attachments:material_attachments(*)')
+    .select('*, attachments:material_attachments(*)')
     .eq('cohort_id', cohortId)
     .order('created_at', { ascending: false })
 
@@ -32,6 +32,7 @@ export default async function MaterialsPage({
 
   const materials: Material[] = (materialsData ?? []).map((m) => ({
     ...m,
+    profile: null,
     attachments: ((m.attachments ?? []) as MaterialAttachment[]).map((a) => ({
       ...a,
       public_url: `${baseUrl}${a.storage_path}`,

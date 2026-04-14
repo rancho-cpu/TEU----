@@ -76,7 +76,11 @@ export function NotificationsPanel({ cohortId, notifications, onClose }: Props) 
                       {n.body && (
                         <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.body}</p>
                       )}
-                      <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                      <p className="text-xs text-gray-400 mt-1 flex items-center gap-1.5">
+                        {n.type === 'manual' && n.sender?.name && (
+                          <span className="font-medium text-gray-500">{n.sender.name}</span>
+                        )}
+                        {n.type === 'manual' && n.sender?.name && <span>·</span>}
                         <Clock className="w-3 h-3" />
                         {formatRelative(n.created_at)}
                       </p>
