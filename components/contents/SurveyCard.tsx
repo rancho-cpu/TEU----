@@ -16,7 +16,7 @@ import {
 import { format, parseISO, isPast } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import type { Survey, SurveyQuestion, SurveyResponse } from '@/types'
-import { ClipboardList, Users, Star, BarChart2, MoreVertical, Trash2, Download } from 'lucide-react'
+import { ClipboardList, Users, Star, BarChart2, MoreVertical, Trash2, Download, Pencil } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -170,6 +170,8 @@ export function SurveyCard({ survey, responseCount, isAdmin, alreadyResponded, o
   const [answers, setAnswers] = useState<AnswerMap>({})
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(alreadyResponded ?? false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [loadingEdit, setLoadingEdit] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -183,6 +185,36 @@ export function SurveyCard({ survey, responseCount, isAdmin, alreadyResponded, o
   const openSubmit = () => {
     setMode('submit')
     setError(null)
+  }
+
+  const openEdit = async () => {
+    setLoadingEdit(true)
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase
+        .from('survey_responses')
+        .select('responses')
+        .eq('survey_id', survey.id)
+        .eq('user_id', user.id)
+        .single()
+      if (data) {
+        // 기존 응답을 index-keyed AnswerMap으로 변환
+        const prefilled: AnswerMap = {}
+        survey.questions.forEach((_, i) => {
+          const val = (data.responses as Record<string, string | number>)[`q${i}`]
+          if (val !== undefined) prefilled[i] = val
+        })
+        setAnswers(prefilled)
+      }
+      setIsEditing(true)
+      setSubmitted(false)
+      setMode('submit')
+      setError(null)
+    } finally {
+      setLoadingEdit(false)
+    }
   }
 
   const openResults = async () => {
@@ -294,7 +326,8 @@ export function SurveyCard({ survey, responseCount, isAdmin, alreadyResponded, o
 
   const handleClose = () => {
     setMode('idle')
-    setSubmitted(false)
+    setSubmitted(alreadyResponded ?? false)
+    setIsEditing(false)
     setError(null)
     setAnswers({})
   }
@@ -375,14 +408,26 @@ export function SurveyCard({ survey, responseCount, isAdmin, alreadyResponded, o
                 </Button>
               </>
             ) : submitted ? (
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-full text-xs text-green-600 border-green-300 bg-green-50 hover:bg-green-100 gap-1"
-                onClick={openSubmit}
-              >
-                ✅ 응답 완료 · 다시 보기
-              </Button>
+              <div className="flex gap-2 w-full">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 text-xs text-green-600 border-green-300 bg-green-50 hover:bg-green-100 gap-1"
+                  onClick={openSubmit}
+                >
+                  ✅ 내 응답 보기
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs text-indigo-600 border-indigo-200 bg-indigo-50 hover:bg-indigo-100 gap-1 px-3"
+                  onClick={openEdit}
+                  disabled={loadingEdit || isExpired}
+                >
+                  <Pencil className="w-3 h-3" />
+                  {loadingEdit ? '...' : '수정'}
+                </Button>
+              </div>
             ) : (
               <Button
                 size="sm"
@@ -439,7 +484,7 @@ export function SurveyCard({ survey, responseCount, isAdmin, alreadyResponded, o
                   disabled={submitting || isExpired}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white"
                 >
-                  {submitting ? '제출 중...' : '제출하기'}
+                  {submitting ? (isEditing ? '수정 중...' : '제출 중...') : (isEditing ? '수정 완료' : '제출하기')}
                 </Button>
               </DialogFooter>
             </div>

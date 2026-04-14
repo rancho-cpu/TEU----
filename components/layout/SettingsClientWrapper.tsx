@@ -405,7 +405,8 @@ export function SettingsClientWrapper({
       body: JSON.stringify({ cohortId, userIds: targets, title: notifTitle.trim(), body: notifBody.trim() || null }),
     })
     if (!res.ok) {
-      setNotifError('발송 중 오류가 발생했습니다.')
+      const json = await res.json().catch(() => ({}))
+      setNotifError(`발송 실패: ${(json as { error?: string }).error ?? res.status}`)
     } else {
       setNotifTitle(''); setNotifBody('')
       setNotifSelectedIds([]); setNotifTargetAll(true)

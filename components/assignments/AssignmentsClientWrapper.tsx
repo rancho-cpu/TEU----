@@ -205,7 +205,9 @@ export function AssignmentsClientWrapper({
       if (att) attachments.push({ ...att, public_url: getUrl(att.storage_path) })
     }
 
-    const updatedSub: AssignmentSubmission = { ...sub, attachments }
+    // 기존 첨부파일 보존 (수정 시 새 파일만 추가, 기존 파일은 유지)
+    const existingAttachments = submitTarget.my_submission?.attachments ?? []
+    const updatedSub: AssignmentSubmission = { ...sub, attachments: [...existingAttachments, ...attachments] }
     setAssignments((prev) => prev.map((a) =>
       a.id === submitTarget.id
         ? { ...a, user_submitted: true, my_submission: updatedSub, submission_count: (a.submission_count ?? 0) + (a.user_submitted ? 0 : 1) }
@@ -382,13 +384,22 @@ export function AssignmentsClientWrapper({
                     {!isAdmin && (
                       <div className="px-5 pb-4">
                         {a.user_submitted ? (
-                          <button
-                            onClick={() => setMyViewTarget(a)}
-                            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-green-200 bg-green-50 hover:bg-green-100 text-sm font-medium text-green-700 transition-colors"
-                          >
-                            <CheckCircle2 className="w-4 h-4" />
-                            제출 완료 — 내 제출물 보기
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setMyViewTarget(a)}
+                              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border border-green-200 bg-green-50 hover:bg-green-100 text-sm font-medium text-green-700 transition-colors"
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                              내 제출물 보기
+                            </button>
+                            <button
+                              onClick={() => openSubmit(a)}
+                              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-sm font-medium text-indigo-700 transition-colors"
+                            >
+                              <PenLine className="w-4 h-4" />
+                              수정
+                            </button>
+                          </div>
                         ) : (
                           <button
                             onClick={() => openSubmit(a)}

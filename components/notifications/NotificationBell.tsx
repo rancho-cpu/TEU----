@@ -50,8 +50,12 @@ export function NotificationBell({ cohortId, currentUserId }: Props) {
   const handleOpen = async () => {
     if (!open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect()
-      // 사이드바(240px) 오른쪽에 패널 표시, 버튼 하단 기준
-      setPanelPos({ top: rect.bottom + 8, left: rect.right + 8 })
+      const panelH = 440
+      const spaceBelow = window.innerHeight - rect.bottom
+      const top = spaceBelow >= panelH
+        ? rect.bottom + 8
+        : Math.max(8, rect.top - panelH - 8)
+      setPanelPos({ top, left: rect.right + 8 })
     }
     setOpen((v) => !v)
     if (!open && unreadCount > 0) {

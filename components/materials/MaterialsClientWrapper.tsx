@@ -87,12 +87,12 @@ export function MaterialsClientWrapper({ cohortId, initialMaterials, isAdmin }: 
     const { data, error } = await supabase
       .from('materials')
       .insert({ cohort_id: cohortId, user_id: user.id, title: title.trim(), content: content.trim() || null })
-      .select('*, profile:profiles!user_id(*)')
+      .select('*')
       .single()
 
     if (error || !data) { setFormError(`저장 중 오류: ${error?.message ?? '알 수 없는 오류'}`); setSaving(false); return }
 
-    const material = data as Material
+    const material = { ...data, profile: null } as Material
     const attachments: MaterialAttachment[] = []
     const { data: { publicUrl: baseUrl } } = supabase.storage.from('materials').getPublicUrl('')
 
