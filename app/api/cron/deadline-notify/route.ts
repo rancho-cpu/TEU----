@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 
 // GET /api/cron/deadline-notify
 // Vercel Cron이 30분마다 호출 (vercel.json 설정)
@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const supabase = await createAdminClient()
+  const supabase = createServiceClient()
   const now = new Date()
   // 매일 오전 8시(KST) 실행 → 오늘~내일 오전 8시 사이 마감 과제 알림
   const windowStart = now

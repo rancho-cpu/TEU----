@@ -210,7 +210,10 @@ export function StatsClientWrapper({
 
                 {/* 행 */}
                 <div className="divide-y divide-gray-50">
-                  {paginated.map((m) => (
+                  {paginated.map((m, idx) => {
+                    const rank = (page - 1) * pageSize + idx + 1
+                    const rankLabel = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`
+                    return (
                     <div key={m.user_id}>
                       <button
                         type="button"
@@ -218,8 +221,16 @@ export function StatsClientWrapper({
                         className="w-full grid grid-cols-[2fr_1fr_3fr_1fr] gap-3 items-center px-3 py-3 hover:bg-gray-50 transition-colors rounded-lg text-left"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-semibold flex-shrink-0">
-                            {getInitial(m.name)}
+                          <div className="relative flex-shrink-0">
+                            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-semibold">
+                              {getInitial(m.name)}
+                            </div>
+                            <span className={cn(
+                              'absolute -top-1 -left-1 text-[10px] font-bold leading-none',
+                              rank <= 3 ? 'text-base' : 'bg-gray-700 text-white rounded-full w-4 h-4 flex items-center justify-center'
+                            )}>
+                              {rankLabel}
+                            </span>
                           </div>
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-gray-900 truncate">{m.name}</p>
@@ -272,7 +283,7 @@ export function StatsClientWrapper({
                         </div>
                       )}
                     </div>
-                  ))}
+                  )})}
                 </div>
 
                 {/* 페이지네이션 */}

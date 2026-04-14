@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { StatsClientWrapper } from '@/components/community/StatsClientWrapper'
 import type { Profile } from '@/types'
@@ -11,6 +11,7 @@ export default async function StatisticsPage({
 }) {
   const { cohortId } = await params
   const supabase = await createClient()
+  const adminSupabase = createServiceClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -38,11 +39,11 @@ export default async function StatisticsPage({
       .select('id, title, order_index')
       .eq('cohort_id', cohortId)
       .order('order_index', { ascending: true }),
-    supabase
+    adminSupabase
       .from('assignment_submissions')
       .select('assignment_id, user_id'),
     surveyIds.length > 0
-      ? supabase
+      ? adminSupabase
           .from('survey_responses')
           .select('survey_id, user_id')
           .in('survey_id', surveyIds)

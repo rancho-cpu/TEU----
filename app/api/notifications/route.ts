@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, createServiceClient } from '@/lib/supabase/server'
 
 // GET /api/notifications?cohortId=xxx  → 내 알림 목록 (최신 50개)
 export async function GET(req: NextRequest) {
@@ -25,12 +25,12 @@ export async function GET(req: NextRequest) {
 // POST /api/notifications  → 관리자가 알림 발송
 // Body: { cohortId, userIds: string[], title, body }
 export async function POST(req: NextRequest) {
-  const supabase = await createAdminClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
+  // 세션 확인은 쿠키 기반 클라이언트로
+  const authSupabase = await createAdminClient()
+  const { data: { user } } = await authSupabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: profile } = await supabase
+  const { data: profile } = await authSupabase
     .from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'admin') return NextResponse.json({ error: 'Admin only' }, { status: 403 })
 
@@ -47,7 +47,9 @@ export async function POST(req: NextRequest) {
     type: 'manual',
   }))
 
-  const { error } = await supabase.from('notifications').insert(rows)
+  // INSERT는 RLS 우회를 위해 순수 service role 클라이언트 사용
+  const serviceSupabase = createServiceClient()
+  const { error } = await serviceSupabase.from('notifications').insert(rows)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return NextResponse.json({ success: true, count: rows.length })
