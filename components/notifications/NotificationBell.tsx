@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { Bell } from 'lucide-react'
 import type { Notification } from '@/types'
 import { NotificationsPanel } from './NotificationsPanel'
@@ -13,7 +14,9 @@ interface Props {
 export function NotificationBell({ cohortId, currentUserId }: Props) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [panelPos, setPanelPos] = useState({ top: 0, left: 0 })
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
 
   const fetchNotifications = useCallback(async () => {
     const res = await fetch(`/api/notifications?cohortId=${cohortId}`)
@@ -31,7 +34,12 @@ export function NotificationBell({ cohortId, currentUserId }: Props) {
   useEffect(() => {
     if (!open) return
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (
+        panelRef.current && !panelRef.current.contains(e.target as Node) &&
+        buttonRef.current && !buttonRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false)
+      }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -40,9 +48,13 @@ export function NotificationBell({ cohortId, currentUserId }: Props) {
   const unreadCount = notifications.filter((n) => !n.is_read).length
 
   const handleOpen = async () => {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      // 사이드바(240px) 오른쪽에 패널 표시, 버튼 하단 기준
+      setPanelPos({ top: rect.bottom + 8, left: rect.right + 8 })
+    }
     setOpen((v) => !v)
     if (!open && unreadCount > 0) {
-      // 모두 읽음 처리
       const unreadIds = notifications.filter((n) => !n.is_read).map((n) => n.id)
       await fetch('/api/notifications', {
         method: 'PATCH',
@@ -54,8 +66,9 @@ export function NotificationBell({ cohortId, currentUserId }: Props) {
   }
 
   return (
-    <div ref={ref} className="relative">
+    <>
       <button
+        ref={buttonRef}
         onClick={handleOpen}
         className="relative flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
         title="알림"
@@ -68,13 +81,19 @@ export function NotificationBell({ cohortId, currentUserId }: Props) {
         )}
       </button>
 
-      {open && (
-        <NotificationsPanel
-          cohortId={cohortId}
-          notifications={notifications}
-          onClose={() => setOpen(false)}
-        />
+      {open && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={panelRef}
+          style={{ position: 'fixed', top: panelPos.top, left: panelPos.left, zIndex: 9999 }}
+        >
+          <NotificationsPanel
+            cohortId={cohortId}
+            notifications={notifications}
+            onClose={() => setOpen(false)}
+          />
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   )
 }

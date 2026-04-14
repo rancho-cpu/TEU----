@@ -32,7 +32,7 @@ export function NotificationsPanel({ cohortId, notifications, onClose }: Props) 
   }
 
   return (
-    <div className="absolute right-0 bottom-full mb-2 w-80 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden z-50">
+    <div className="w-80 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <p className="text-sm font-semibold text-gray-800 flex items-center gap-2">
           <Bell className="w-4 h-4 text-indigo-500" />알림
