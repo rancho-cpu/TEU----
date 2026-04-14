@@ -81,6 +81,17 @@ export function AssignmentsClientWrapper({
   // 설문 생성
   const [surveyModalOpen, setSurveyModalOpen] = useState(false)
 
+  // 과제 수정 (관리자)
+  const [editTarget, setEditTarget] = useState<Assignment | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editDesc, setEditDesc] = useState('')
+  const [editDeadline, setEditDeadline] = useState('')
+  const [editing, setEditing] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+
+  // 설문 수정 (관리자)
+  const [editingSurvey, setEditingSurvey] = useState<Survey | null>(null)
+
   // 제출 모달
   const [submitTarget, setSubmitTarget] = useState<Assignment | null>(null)
   const [submitContent, setSubmitContent] = useState('')
@@ -129,6 +140,35 @@ export function AssignmentsClientWrapper({
       setCreateOpen(false)
     }
     setCreating(false)
+  }
+
+  // ── 과제 수정 열기 ────────────────────────────────────────
+  const openEditAssignment = (a: Assignment) => {
+    setEditTarget(a)
+    setEditTitle(a.title)
+    setEditDesc(a.description ?? '')
+    setEditDeadline(a.deadline ? a.deadline.slice(0, 16) : '')
+    setEditError(null)
+  }
+
+  // ── 과제 수정 저장 ────────────────────────────────────────
+  const handleEditSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editTarget || !editTitle.trim()) return
+    setEditing(true); setEditError(null)
+    const { data, error } = await supabase
+      .from('assignments')
+      .update({ title: editTitle.trim(), description: editDesc.trim() || null, deadline: editDeadline || null })
+      .eq('id', editTarget.id)
+      .select().single()
+    if (error) { setEditError(error.message) }
+    else if (data) {
+      setAssignments((prev) => prev.map((a) =>
+        a.id === editTarget.id ? { ...a, title: data.title, description: data.description, deadline: data.deadline } : a
+      ))
+      setEditTarget(null)
+    }
+    setEditing(false)
   }
 
   // ── 과제 삭제 ─────────────────────────────────────────────
@@ -370,7 +410,10 @@ export function AssignmentsClientWrapper({
                                   <Users className="w-3.5 h-3.5" />
                                   {a.submission_count}명 제출
                                 </button>
-                                <button onClick={() => handleDelete(a.id)} className="text-gray-400 hover:text-red-500 transition-colors">
+                                <button onClick={() => openEditAssignment(a)} className="text-gray-400 hover:text-indigo-500 transition-colors" title="수정">
+                                  <PenLine className="w-4 h-4" />
+                                </button>
+                                <button onClick={() => handleDelete(a.id)} className="text-gray-400 hover:text-red-500 transition-colors" title="삭제">
                                   <Trash2 className="w-4 h-4" />
                                 </button>
                               </div>
@@ -449,6 +492,7 @@ export function AssignmentsClientWrapper({
                     alreadyResponded={!isAdmin && respondedIds.has(s.id)}
                     onDeleted={handleSurveyDeleted}
                     onResponded={handleSurveyResponded}
+                    onEditRequest={isAdmin ? () => setEditingSurvey(s) : undefined}
                   />
                 </div>
               ))}
@@ -497,6 +541,49 @@ export function AssignmentsClientWrapper({
           setTab('survey')
         }}
       />
+
+      {/* ── 설문 수정 모달 (관리자) ── */}
+      {editingSurvey && (
+        <CreateSurveyModal
+          key={editingSurvey.id}
+          cohortId={cohortId}
+          open={!!editingSurvey}
+          onClose={() => setEditingSurvey(null)}
+          editingSurvey={editingSurvey}
+          onUpdated={(updated) => {
+            setSurveys((prev) => prev.map((s) => s.id === updated.id ? updated : s))
+            setEditingSurvey(null)
+          }}
+        />
+      )}
+
+      {/* ── 과제 수정 모달 (관리자) ── */}
+      <Dialog open={!!editTarget} onOpenChange={(v) => { if (!v) setEditTarget(null) }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>과제 수정</DialogTitle></DialogHeader>
+          <form onSubmit={handleEditSave} className="space-y-4 mt-2">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">과제명</Label>
+              <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="과제 제목" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">설명 <span className="text-gray-400 font-normal">(선택)</span></Label>
+              <Textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} className="resize-none min-h-[80px] text-sm" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">마감일 <span className="text-gray-400 font-normal">(선택)</span></Label>
+              <Input type="datetime-local" value={editDeadline} onChange={(e) => setEditDeadline(e.target.value)} className="text-sm" />
+            </div>
+            {editError && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{editError}</p>}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setEditTarget(null)}>취소</Button>
+              <Button type="submit" disabled={editing || !editTitle.trim()}>
+                {editing ? <Loader2 className="w-4 h-4 animate-spin" /> : '저장'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* ── 학생 제출 모달 ── */}
       <Dialog open={!!submitTarget} onOpenChange={() => setSubmitTarget(null)}>

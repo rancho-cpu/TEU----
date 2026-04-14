@@ -29,6 +29,7 @@ interface SurveyCardProps {
   alreadyResponded?: boolean
   onDeleted?: (id: string) => void
   onResponded?: (surveyId: string) => void
+  onEditRequest?: () => void
 }
 
 function formatDeadline(dateStr: string | null): string {
@@ -165,7 +166,7 @@ function TextResult({ answers }: { answers: string[] }) {
 // ────────────────────────────────────────────────────────────
 // Main component
 // ────────────────────────────────────────────────────────────
-export function SurveyCard({ survey, responseCount, isAdmin, alreadyResponded, onDeleted, onResponded }: SurveyCardProps) {
+export function SurveyCard({ survey, responseCount, isAdmin, alreadyResponded, onDeleted, onResponded, onEditRequest }: SurveyCardProps) {
   const [mode, setMode] = useState<'idle' | 'submit' | 'results'>('idle')
   const [answers, setAnswers] = useState<AnswerMap>({})
   const [submitting, setSubmitting] = useState(false)
@@ -347,6 +348,11 @@ export function SurveyCard({ survey, responseCount, isAdmin, alreadyResponded, o
                 <MoreVertical className="w-4 h-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {onEditRequest && (
+                  <DropdownMenuItem onClick={onEditRequest}>
+                    <Pencil className="w-4 h-4 mr-2" />수정
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   onClick={handleDelete}
                   className="text-red-500 focus:text-red-500"

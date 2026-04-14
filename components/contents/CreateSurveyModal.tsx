@@ -41,6 +41,8 @@ interface CreateSurveyModalProps {
   open: boolean
   onClose: () => void
   onCreated?: (survey: Survey) => void
+  editingSurvey?: Survey
+  onUpdated?: (survey: Survey) => void
 }
 
 export function CreateSurveyModal({
@@ -48,13 +50,20 @@ export function CreateSurveyModal({
   open,
   onClose,
   onCreated,
+  editingSurvey,
+  onUpdated,
 }: CreateSurveyModalProps) {
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [deadline, setDeadline] = useState('')
-  const [questions, setQuestions] = useState<DraftQuestion[]>([
-    { id: crypto.randomUUID(), type: 'text', label: '' },
-  ])
+  const isEditMode = !!editingSurvey
+  const [title, setTitle] = useState(editingSurvey?.title ?? '')
+  const [description, setDescription] = useState(editingSurvey?.description ?? '')
+  const [deadline, setDeadline] = useState(
+    editingSurvey?.deadline ? editingSurvey.deadline.slice(0, 16) : ''
+  )
+  const [questions, setQuestions] = useState<DraftQuestion[]>(
+    editingSurvey?.questions?.length
+      ? editingSurvey.questions.map((q) => ({ id: crypto.randomUUID(), ...q }))
+      : [{ id: crypto.randomUUID(), type: 'text', label: '' }]
+  )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -150,24 +159,39 @@ export function CreateSurveyModal({
         return { type: 'choice', label: q.label, options: q.options ?? [] }
       })
 
-      const { data, error: insertError } = await supabase
-        .from('surveys')
-        .insert({
-          cohort_id: cohortId,
-          title: title.trim(),
-          description: description.trim() || null,
-          questions: builtQuestions,
-          deadline: deadline || null,
-        })
-        .select()
-        .single()
+      if (isEditMode && editingSurvey) {
+        const { data, error: updateError } = await supabase
+          .from('surveys')
+          .update({
+            title: title.trim(),
+            description: description.trim() || null,
+            questions: builtQuestions,
+            deadline: deadline || null,
+          })
+          .eq('id', editingSurvey.id)
+          .select()
+          .single()
+        if (updateError) throw updateError
+        onUpdated?.(data as Survey)
+      } else {
+        const { data, error: insertError } = await supabase
+          .from('surveys')
+          .insert({
+            cohort_id: cohortId,
+            title: title.trim(),
+            description: description.trim() || null,
+            questions: builtQuestions,
+            deadline: deadline || null,
+          })
+          .select()
+          .single()
+        if (insertError) throw insertError
+        onCreated?.(data as Survey)
+      }
 
-      if (insertError) throw insertError
-
-      onCreated?.(data as Survey)
       handleClose()
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : '설문 생성 중 오류가 발생했습니다.')
+      setError(e instanceof Error ? e.message : (isEditMode ? '설문 수정 중 오류가 발생했습니다.' : '설문 생성 중 오류가 발생했습니다.'))
     } finally {
       setSubmitting(false)
     }
@@ -177,7 +201,7 @@ export function CreateSurveyModal({
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
       <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-lg font-bold text-gray-900">설문 추가</DialogTitle>
+          <DialogTitle className="text-lg font-bold text-gray-900">{isEditMode ? '설문 수정' : '설문 추가'}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5 py-2">
@@ -279,7 +303,7 @@ export function CreateSurveyModal({
             disabled={submitting}
             className="bg-indigo-600 hover:bg-indigo-700 text-white"
           >
-            {submitting ? '저장 중...' : '설문 저장'}
+            {submitting ? '저장 중...' : (isEditMode ? '수정 완료' : '설문 저장')}
           </Button>
         </DialogFooter>
       </DialogContent>
