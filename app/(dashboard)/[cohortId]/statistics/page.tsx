@@ -49,11 +49,19 @@ export default async function StatisticsPage({
       : Promise.resolve({ data: [] }),
     supabase
       .from('cohort_members')
-      .select('user_id, joined_at, profile:profiles!user_id(id, name, avatar_url, email)')
+      .select('user_id, joined_at, profile:profiles!user_id(id, name, avatar_url, email, role)')
       .eq('cohort_id', cohortId),
   ])
 
-  const totalMembers = membersData?.length ?? 0
+  // 관리자 제외 멤버만 집계 대상
+  type MemberRow = { user_id: string; joined_at: string; profile: unknown }
+  type ProfileRow = { id: string; name: string | null; avatar_url: string | null; email: string; role: string }
+  const studentMembers = ((membersData ?? []) as MemberRow[]).filter((m) => {
+    const p = (m.profile as unknown) as ProfileRow | null
+    return p?.role !== 'admin'
+  })
+
+  const totalMembers = studentMembers.length
   const assignmentIds = (assignmentsData ?? []).map((a: { id: string }) => a.id)
 
   // 과제별 제출 수
@@ -76,23 +84,26 @@ export default async function StatisticsPage({
     responsesByUser[row.user_id].add(row.survey_id)
   }
 
-  // 과제별 제출률
+  // 과제별 제출률 + 제출한 유저 목록 (학생만 기준)
   const assignmentStats = (assignmentsData ?? []).map((a: { id: string; title: string }) => {
-    const count = subCountByAssignment[a.id] ?? 0
+    const submittedUserIds = studentMembers
+      .map((m) => (m.profile as unknown as ProfileRow | null)?.id ?? m.user_id)
+      .filter((uid) => subByUserAssignment[uid]?.has(a.id))
     return {
       id: a.id,
       title: a.title,
-      submission_count: count,
+      submission_count: submittedUserIds.length,
       total_members: totalMembers,
-      percentage: totalMembers > 0 ? Math.round((count / totalMembers) * 100) : 0,
+      percentage: totalMembers > 0 ? Math.round((submittedUserIds.length / totalMembers) * 100) : 0,
+      submitted_user_ids: submittedUserIds,
     }
   })
 
-  // 멤버별 통합 제출률 (글쓰기 + 설문)
+  // 멤버별 통합 제출률 (글쓰기 + 설문, 학생만)
   const totalItems = assignmentIds.length + surveyIds.length
-  const memberStats = (membersData ?? []).map((m) => {
-    const profile = (m.profile as unknown) as { id: string; name: string | null; avatar_url: string | null; email: string } | null
-    const userId = profile?.id ?? (m as { user_id: string }).user_id
+  const memberStats = studentMembers.map((m) => {
+    const profile = (m.profile as unknown) as ProfileRow | null
+    const userId = profile?.id ?? m.user_id
     const assignmentsSubmitted = subByUserAssignment[userId]?.size ?? 0
     const surveysResponded = responsesByUser[userId]?.size ?? 0
     const completed = assignmentsSubmitted + surveysResponded
@@ -104,6 +115,8 @@ export default async function StatisticsPage({
       submitted: completed,
       total: totalItems,
       percentage: totalItems > 0 ? Math.round((completed / totalItems) * 100) : 0,
+      submitted_assignment_ids: [...(subByUserAssignment[userId] ?? [])],
+      responded_survey_ids: [...(responsesByUser[userId] ?? [])],
     }
   }).sort((a, b) => b.percentage - a.percentage)
 
@@ -165,6 +178,8 @@ export default async function StatisticsPage({
         joinTrend={joinTrend}
         totalMembers={totalMembers}
         isAdmin={isAdmin}
+        allAssignments={(assignmentsData ?? []).map((a: { id: string; title: string }) => ({ id: a.id, title: a.title }))}
+        allSurveys={(surveysData ?? []).map((s: { id: string; title: string }) => ({ id: s.id, title: s.title }))}
       />
     </div>
   )

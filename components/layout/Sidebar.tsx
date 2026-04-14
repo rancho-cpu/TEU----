@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import {
   BookOpen, Users, BarChart2, Users2, Settings,
-  ExternalLink, LogOut, Images, ClipboardList, UserCircle2,
+  ExternalLink, LogOut, Images, ClipboardList, UserCircle2, BookMarked,
 } from 'lucide-react'
 import type { Cohort, Profile, Shortcut } from '@/types'
 import { CohortSwitcher } from './CohortSwitcher'
@@ -16,6 +16,7 @@ const navItems = [
   { href: 'community',   label: '커뮤니티',    icon: Users },
   { href: 'assignments', label: '과제 제출',   icon: ClipboardList },
   { href: 'photos',      label: '사진 게시판', icon: Images },
+  { href: 'materials',   label: '강연 자료',   icon: BookMarked },
   { href: 'statistics',  label: '통계',        icon: BarChart2 },
   { href: 'members',     label: '구성원 목록', icon: Users2 },
   { href: 'settings',    label: '설정',        icon: Settings },

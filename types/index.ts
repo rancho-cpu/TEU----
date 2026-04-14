@@ -222,3 +222,25 @@ export interface ChatbotFaq {
   order_index: number
   created_at: string
 }
+
+export interface MaterialAttachment {
+  id: string
+  material_id: string
+  storage_path: string
+  file_name: string | null
+  file_type: string | null
+  file_size: number | null
+  public_url?: string
+  created_at: string
+}
+
+export interface Material {
+  id: string
+  cohort_id: string
+  user_id: string | null
+  title: string
+  content: string | null
+  created_at: string
+  profile?: Profile | null
+  attachments?: MaterialAttachment[]
+}

@@ -20,11 +20,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   MessageCircle, Trash2, Send, Calendar, ChevronRight,
   Heart, Star, HandMetal, Pin, PinOff, MoreHorizontal,
-  File, FileText, FileImage, FileVideo, Paperclip,
+  File, FileText, FileImage, FileVideo, Paperclip, Pencil,
 } from 'lucide-react'
+
+const CATEGORIES = ['공지', '소개', '출결', '자유', '질문']
 
 interface PostCardProps {
   post: Post
@@ -105,6 +109,16 @@ export function PostCard({
   const [submittingComment, setSubmittingComment] = useState(false)
   const [deletingPost, setDeletingPost] = useState(false)
 
+  // 수정
+  const [editOpen, setEditOpen] = useState(false)
+  const [editTitle, setEditTitle] = useState(post.title)
+  const [editCategory, setEditCategory] = useState(post.category)
+  const [editContent, setEditContent] = useState(post.content)
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+
+  const canEdit = isAdmin || post.user_id === currentUserId
+
   const [liked, setLiked] = useState(post.user_liked ?? false)
   const [likeCount, setLikeCount] = useState(post.likes_count ?? 0)
   const [likePending, setLikePending] = useState(false)
@@ -117,6 +131,36 @@ export function PostCard({
 
   const supabase = createClient()
   const canDelete = isAdmin || post.user_id === currentUserId
+
+  const openEdit = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setEditTitle(post.title)
+    setEditCategory(post.category)
+    setEditContent(post.content)
+    setEditError(null)
+    setEditOpen(true)
+  }
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editTitle.trim() || !editContent.trim()) {
+      setEditError('제목과 내용을 입력해주세요.')
+      return
+    }
+    setSavingEdit(true)
+    setEditError(null)
+    const { error } = await supabase
+      .from('posts')
+      .update({ title: editTitle.trim(), category: editCategory, content: editContent.trim() })
+      .eq('id', post.id)
+    if (error) {
+      setEditError('저장 중 오류가 발생했습니다.')
+    } else {
+      onUpdated?.(post.id, { title: editTitle.trim(), category: editCategory, content: editContent.trim() })
+      setEditOpen(false)
+    }
+    setSavingEdit(false)
+  }
 
   const handleTogglePin = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -373,6 +417,9 @@ export function PostCard({
                         ? <><PinOff className="w-3.5 h-3.5" /> 고정 해제</>
                         : <><Pin className="w-3.5 h-3.5" /> 상단 고정</>}
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={openEdit} className="gap-2 text-sm cursor-pointer">
+                      <Pencil className="w-3.5 h-3.5" /> 수정
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={(e) => { e.stopPropagation(); handleDeletePost() }}
@@ -405,18 +452,18 @@ export function PostCard({
               >
                 {post.category}
               </span>
-              {canDelete && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50 -mt-1 flex-shrink-0"
-                  onClick={handleDeletePost}
-                  disabled={deletingPost}
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  삭제
-                </Button>
-              )}
+              <div className="flex items-center gap-1 -mt-1 flex-shrink-0">
+                {canEdit && (
+                  <Button variant="ghost" size="sm" className="text-gray-500 hover:text-blue-600 hover:bg-blue-50" onClick={openEdit}>
+                    <Pencil className="w-4 h-4 mr-1" />수정
+                  </Button>
+                )}
+                {canDelete && (
+                  <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={handleDeletePost} disabled={deletingPost}>
+                    <Trash2 className="w-4 h-4 mr-1" />삭제
+                  </Button>
+                )}
+              </div>
             </div>
 
             <DialogTitle className="text-xl font-bold text-gray-900 mt-2 text-left">
@@ -588,6 +635,58 @@ export function PostCard({
             </div>
             <p className="text-xs text-gray-400 mt-1">Ctrl+Enter로 전송</p>
           </div>
+        </DialogContent>
+      </Dialog>
+      {/* 수정 다이얼로그 */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-4 h-4 text-blue-500" />
+              게시글 수정
+            </DialogTitle>
+          </DialogHeader>
+          <Separator />
+          <form onSubmit={handleSaveEdit} className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">카테고리</Label>
+              <div className="flex gap-2 flex-wrap">
+                {CATEGORIES.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setEditCategory(cat)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border-2 transition-all ${
+                      editCategory === cat
+                        ? `${CATEGORY_COLORS[cat] ?? 'bg-gray-100 text-gray-700'} border-current`
+                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">제목</Label>
+              <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} maxLength={100} className="text-sm" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">내용</Label>
+              <Textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="min-h-[140px] resize-none text-sm"
+              />
+            </div>
+            {editError && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{editError}</p>}
+            <div className="flex gap-2 justify-end">
+              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>취소</Button>
+              <Button type="submit" disabled={savingEdit}>
+                {savingEdit ? '저장 중...' : '수정 완료'}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </>
