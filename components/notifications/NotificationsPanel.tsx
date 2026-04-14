@@ -28,6 +28,8 @@ export function NotificationsPanel({ cohortId, notifications, onClose }: Props) 
     onClose()
     if (n.type === 'deadline' && n.related_id) {
       router.push(`/${cohortId}/assignments`)
+    } else if (n.type === 'community') {
+      router.push(`/${cohortId}/community`)
     }
   }
 
@@ -64,7 +66,7 @@ export function NotificationsPanel({ cohortId, notifications, onClose }: Props) 
                 >
                   <div className="flex items-start gap-2.5">
                     <span className="text-base flex-shrink-0 mt-0.5">
-                      {n.type === 'deadline' ? '⏰' : '🔔'}
+                      {n.type === 'deadline' ? '⏰' : n.type === 'community' ? n.title.charAt(0) : '🔔'}
                     </span>
                     <div className="flex-1 min-w-0">
                       <p className={cn(

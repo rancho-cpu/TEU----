@@ -251,7 +251,7 @@ export interface Notification {
   user_id: string
   title: string
   body: string | null
-  type: 'manual' | 'deadline'
+  type: 'manual' | 'deadline' | 'community'
   related_id: string | null
   is_read: boolean
   created_at: string

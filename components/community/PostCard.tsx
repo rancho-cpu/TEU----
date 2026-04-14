@@ -35,6 +35,7 @@ interface PostCardProps {
   isAdmin: boolean
   cohortId: string
   currentUserId: string
+  currentUserName: string
   onDeleted: (postId: string) => void
   onLikeToggled?: (postId: string, liked: boolean, newCount: number) => void
   onReactionToggled?: (
@@ -92,11 +93,21 @@ function getInitials(name: string | null) {
   return name.charAt(0).toUpperCase()
 }
 
+// 커뮤니티 알림 발송 헬퍼 (fire-and-forget, 실패해도 무시)
+async function sendCommunityNotif(cohortId: string, recipientId: string, title: string, body: string, relatedId: string) {
+  fetch('/api/notifications/community', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cohortId, recipientId, title, body, relatedId }),
+  }).catch(() => {})
+}
+
 export function PostCard({
   post,
   isAdmin,
   cohortId,
   currentUserId,
+  currentUserName,
   onDeleted,
   onLikeToggled,
   onReactionToggled,
@@ -196,6 +207,11 @@ export function PostCard({
     if (!error && data) {
       setComments((prev) => [...prev, data as Comment])
       setCommentText('')
+      // 글 작성자에게 알림 (자기 글에 자기가 댓글 쓴 경우 제외)
+      if (post.user_id && post.user_id !== currentUserId) {
+        const name = currentUserName || (data as Comment & { profile?: { name?: string } }).profile?.name || '누군가'
+        sendCommunityNotif(cohortId, post.user_id, `💬 ${name}님이 댓글을 남겼어요`, commentText.trim().slice(0, 60), post.id)
+      }
     }
     setSubmittingComment(false)
   }
@@ -222,6 +238,9 @@ export function PostCard({
     setLikeCount(newCount)
     if (newLiked) {
       await supabase.from('post_likes').insert({ post_id: post.id, user_id: currentUserId })
+      if (post.user_id && post.user_id !== currentUserId) {
+        sendCommunityNotif(cohortId, post.user_id, `❤️ ${currentUserName}님이 좋아요를 눌렀어요`, post.title.slice(0, 60), post.id)
+      }
     } else {
       await supabase
         .from('post_likes')
@@ -251,6 +270,11 @@ export function PostCard({
       await supabase
         .from('post_reactions')
         .insert({ post_id: post.id, user_id: currentUserId, type })
+      if (post.user_id && post.user_id !== currentUserId) {
+        const emoji = type === 'star' ? '⭐' : '👏'
+        const label = type === 'star' ? '별 반응을 남겼어요' : '박수 반응을 남겼어요'
+        sendCommunityNotif(cohortId, post.user_id, `${emoji} ${currentUserName}님이 ${label}`, post.title.slice(0, 60), post.id)
+      }
     } else {
       await supabase
         .from('post_reactions')

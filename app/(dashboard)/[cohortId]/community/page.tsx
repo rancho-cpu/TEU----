@@ -101,6 +101,7 @@ export default async function CommunityPage({
       initialPosts={posts}
       isAdmin={isAdmin}
       currentUserId={user.id}
+      currentUserName={profile?.name ?? profile?.email ?? ''}
       members={members}
     />
   )

@@ -41,6 +41,7 @@ interface CommunityClientWrapperProps {
   initialPosts: Post[]
   isAdmin: boolean
   currentUserId: string
+  currentUserName: string
   members?: Member[]
 }
 
@@ -49,6 +50,7 @@ export function CommunityClientWrapper({
   initialPosts,
   isAdmin,
   currentUserId,
+  currentUserName,
   members = [],
 }: CommunityClientWrapperProps) {
   const [posts, setPosts] = useState<Post[]>(initialPosts)
@@ -233,6 +235,7 @@ export function CommunityClientWrapper({
                 isAdmin={isAdmin}
                 cohortId={cohortId}
                 currentUserId={currentUserId}
+                currentUserName={currentUserName}
                 onDeleted={handlePostDeleted}
                 onLikeToggled={handleLikeToggled}
                 onReactionToggled={handleReactionToggled}
