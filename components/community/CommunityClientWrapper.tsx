@@ -268,6 +268,7 @@ export function CommunityClientWrapper({
               isAdmin={isAdmin}
               cohortId={cohortId}
               currentUserId={currentUserId}
+              currentUserName={currentUserName}
               onDeleted={handlePostDeleted}
               onLikeToggled={handleLikeToggled}
               onReactionToggled={handleReactionToggled}
