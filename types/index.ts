@@ -246,6 +246,29 @@ export interface Material {
   attachments?: MaterialAttachment[]
 }
 
+export interface AttendanceSession {
+  id: string
+  cohort_id: string
+  title: string
+  type: 'offline' | 'zoom' | 'hybrid'
+  session_date: string
+  start_time: string
+  end_time: string
+  zoom_meeting_id: string | null
+  created_at: string
+}
+
+export interface OfflineAttendance {
+  id: string
+  session_id: string
+  user_id: string
+  check_in: string | null
+  check_out: string | null
+  note: string | null
+  created_at: string
+  profile?: Profile
+}
+
 export interface Notification {
   id: string
   cohort_id: string
