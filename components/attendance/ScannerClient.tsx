@@ -25,7 +25,8 @@ interface ScanLog {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export function ScannerClient({ cohortId, sessions }: ScannerClientProps) {
-  const [selectedSession, setSelectedSession] = useState(sessions[0]?.id ?? '')
+  const offlineSessions = sessions.filter((s) => s.type === 'offline' || s.type === 'hybrid')
+  const [selectedSession, setSelectedSession] = useState(offlineSessions[0]?.id ?? '')
   const [scanMode, setScanMode] = useState<'auto' | 'in' | 'out'>('auto')
   const [logs, setLogs] = useState<ScanLog[]>([])
   const [feedback, setFeedback] = useState<ScanLog | null>(null)
@@ -90,8 +91,6 @@ export function ScannerClient({ cohortId, sessions }: ScannerClientProps) {
     setLogs([])
     setFeedback(null)
   }
-
-  const offlineSessions = sessions.filter((s) => s.type === 'offline' || s.type === 'hybrid')
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
