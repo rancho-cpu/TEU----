@@ -246,24 +246,42 @@ export function PostCard({
     setReplyText('')
     setReplyingTo(null)
 
-    if (post.user_id && post.user_id !== currentUserId) {
-      const name =
-        currentUserName ||
-        (data as Comment & { profile?: { name?: string } }).profile?.name ||
-        '누군가'
+    const parentComment = comments.find((comment) => comment.id === parentId)
 
-      sendCommunityNotif(
-        cohortId,
-        post.user_id,
-        `↪️ ${name}님이 답글을 남겼어요`,
-        replyBody.slice(0, 60),
-        post.id
-      )
-    }
+  // 대댓글 알림: 댓글 작성자에게만, 원글쓴이·본인에게는 보내지 않음
+  if (
+    parentComment?.user_id &&
+    parentComment.user_id !== currentUserId &&
+    parentComment.user_id !== post.user_id
+  ) {
+    const name =
+      currentUserName ||
+      (data as Comment & { profile?: { name?: string } }).profile?.name ||
+      '누군가'
+    sendCommunityNotif(
+      cohortId,
+      parentComment.user_id,
+      `↪️ ${name}님이 내 댓글에 답글을 남겼어요`,
+      replyBody.slice(0, 60),
+      post.id
+    )
+  }
   }
 
   setSubmittingReply(false)
 }
+  const handleDeleteComment = async (commentId: string) => {
+    if (!confirm('이 댓글을 삭제하시겠습니까?')) return
+
+    const { error } = await supabase
+      .from('comments')
+      .delete()
+      .eq('id', commentId)
+
+    if (!error) {
+      setComments((prev) => prev.filter((comment) => comment.id !== commentId))
+    }
+  }
   const handleDeletePost = async () => {
     if (!confirm('이 게시글을 삭제하시겠습니까?')) return
     setDeletingPost(true)
@@ -738,6 +756,15 @@ export function PostCard({
                         <span className="text-xs text-gray-400">
                           {formatTime(reply.created_at)}
                         </span>
+                        {(isAdmin || reply.user_id === currentUserId) && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteComment(reply.id)}
+                            className="ml-auto text-xs text-red-500 hover:text-red-600 transition-colors"
+                          >
+                            삭제
+                          </button>
+                        )}
                       </div>
                       <p className="text-sm text-gray-700 leading-relaxed">
                         {reply.content}
