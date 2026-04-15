@@ -2,15 +2,17 @@
 
 import { useState } from 'react'
 import type { Profile, AttendanceSession, OfflineAttendance } from '@/types'
+import type { ZoomImportResult } from '@/app/api/attendance/zoom-import/route'
 import QRCode from 'react-qr-code'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   CalendarCheck, QrCode, ScanLine, Plus, ChevronDown, ChevronRight,
-  CheckCircle2, XCircle, Pencil, Trash2, X,
+  CheckCircle2, XCircle, Pencil, Trash2, X, Download, AlertCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SessionFormModal } from './SessionFormModal'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import Link from 'next/link'
 
 interface AttendanceClientWrapperProps {
@@ -85,9 +87,103 @@ export function AttendanceClientWrapper({
   const [showMyQR, setShowMyQR] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
+  // Zoom import 상태
+  const [importingSessionId, setImportingSessionId] = useState<string | null>(null)
+  const [zoomImportResult, setZoomImportResult] = useState<ZoomImportResult | null>(null)
+  const [zoomMappingSessionId, setZoomMappingSessionId] = useState<string | null>(null)
+  // 이름 매핑: zoomName → userId (선택 중)
+  const [pendingMappings, setPendingMappings] = useState<
+    Record<string, string>
+  >({})
+  const [savingMappings, setSavingMappings] = useState(false)
+
   // 기록 조회 헬퍼
   const getRecord = (sessionId: string, userId: string) =>
     records.find((r) => r.session_id === sessionId && r.user_id === userId)
+
+  // Zoom 데이터 가져오기
+  const handleZoomImport = async (sessionId: string) => {
+    setImportingSessionId(sessionId)
+    try {
+      const res  = await fetch('/api/attendance/zoom-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      })
+      const data = await res.json()
+      if (!res.ok) { alert(`가져오기 실패: ${data.error}`); return }
+
+      const result = data as ZoomImportResult
+      // 매칭된 참석자 → records에 반영
+      const newRecs: OfflineAttendance[] = result.matched.map((m) => ({
+        id: `zoom-${sessionId}-${m.userId}`,
+        session_id: sessionId,
+        user_id: m.userId,
+        check_in: m.checkIn,
+        check_out: m.checkOut,
+        note: `zoom:${m.zoomName}`,
+        created_at: new Date().toISOString(),
+      }))
+      setRecords((prev) => [
+        ...prev.filter((r) => r.session_id !== sessionId || !newRecs.find((nr) => nr.user_id === r.user_id)),
+        ...newRecs,
+      ])
+
+      if (result.unmatched.length > 0) {
+        setZoomImportResult(result)
+        setZoomMappingSessionId(sessionId)
+        setPendingMappings({})
+      } else {
+        alert(`✅ ${result.matched.length}명 자동 매핑 완료`)
+      }
+    } finally {
+      setImportingSessionId(null)
+    }
+  }
+
+  // 이름 매핑 저장
+  const handleSaveMappings = async () => {
+    if (!zoomMappingSessionId || !zoomImportResult) return
+    setSavingMappings(true)
+
+    const session = sessions.find((s) => s.id === zoomMappingSessionId)
+    const mappingsToSave = zoomImportResult.unmatched
+      .filter((u) => pendingMappings[u.zoomName])
+      .map((u) => ({
+        zoomName: u.zoomName,
+        zoomEmail: u.zoomEmail,
+        userId: pendingMappings[u.zoomName],
+        checkIn: u.checkIn,
+        checkOut: u.checkOut,
+      }))
+
+    const res = await fetch('/api/attendance/zoom-import', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: zoomMappingSessionId,
+        cohortId: session?.cohort_id,
+        mappings: mappingsToSave,
+      }),
+    })
+
+    if (res.ok) {
+      const newRecs: OfflineAttendance[] = mappingsToSave.map((m) => ({
+        id: `zoom-mapped-${zoomMappingSessionId}-${m.userId}`,
+        session_id: zoomMappingSessionId,
+        user_id: m.userId,
+        check_in: m.checkIn,
+        check_out: m.checkOut,
+        note: `zoom:${m.zoomName}`,
+        created_at: new Date().toISOString(),
+      }))
+      setRecords((prev) => [...prev, ...newRecs])
+    }
+    setSavingMappings(false)
+    setZoomImportResult(null)
+    setZoomMappingSessionId(null)
+    setPendingMappings({})
+  }
 
   // 세션 삭제
   const handleDeleteSession = async (sessionId: string) => {
@@ -333,7 +429,29 @@ export function AttendanceClientWrapper({
                         )}
 
                         {/* 관리자 액션 */}
-                        <div className="p-3 bg-gray-50 flex items-center gap-2 justify-end border-t border-gray-100">
+                        <div className="p-3 bg-gray-50 flex items-center gap-2 flex-wrap border-t border-gray-100">
+                          {/* Zoom 전용: 데이터 가져오기 */}
+                          {(session.type === 'zoom' || session.type === 'hybrid') && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs text-emerald-600 border-emerald-200 hover:border-emerald-400 hover:text-emerald-700"
+                              disabled={importingSessionId === session.id}
+                              onClick={() => handleZoomImport(session.id)}
+                            >
+                              <Download className="w-3 h-3 mr-1" />
+                              {importingSessionId === session.id
+                                ? 'Zoom 데이터 불러오는 중...'
+                                : 'Zoom 참석 데이터 가져오기'}
+                            </Button>
+                          )}
+                          {!session.zoom_meeting_id && (session.type === 'zoom' || session.type === 'hybrid') && (
+                            <span className="text-xs text-amber-500 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" />
+                              Meeting ID 없음
+                            </span>
+                          )}
+                          <div className="flex-1" />
                           <Button
                             size="sm"
                             variant="outline"
@@ -427,6 +545,115 @@ export function AttendanceClientWrapper({
             setEditingSession(null)
           }}
         />
+      )}
+
+      {/* Zoom 이름 매핑 모달 */}
+      {zoomImportResult && zoomMappingSessionId && (
+        <Dialog
+          open
+          onOpenChange={() => {
+            setZoomImportResult(null)
+            setZoomMappingSessionId(null)
+            setPendingMappings({})
+          }}
+        >
+          <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-500" />
+                Zoom 참석자 매핑
+              </DialogTitle>
+            </DialogHeader>
+
+            {/* 자동 매핑 완료 */}
+            {zoomImportResult.matched.length > 0 && (
+              <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm">
+                <p className="font-semibold text-green-700 mb-1">
+                  ✅ 자동 매핑 완료: {zoomImportResult.matched.length}명
+                </p>
+                <p className="text-green-600 text-xs">
+                  {zoomImportResult.matched.map((m) => m.userName).join(', ')}
+                </p>
+              </div>
+            )}
+
+            {/* 미매핑 참석자 */}
+            <div className="space-y-2 mt-1">
+              <p className="text-sm font-semibold text-gray-700">
+                미매핑 참석자 {zoomImportResult.unmatched.length}명 — 플랫폼 사용자를 연결하세요
+              </p>
+              <p className="text-xs text-gray-400">
+                한 번 설정하면 다음번에 같은 Zoom 이름을 자동으로 인식합니다
+              </p>
+              {zoomImportResult.unmatched.map((u) => {
+                const sessionData = sessions.find((s) => s.id === zoomMappingSessionId)
+                const durationMin = Math.round(u.durationSec / 60)
+                const sessionDurationMin = Math.round(
+                  (zoomImportResult.sessionDurationSec ?? 0) / 60
+                )
+                return (
+                  <div
+                    key={u.zoomName}
+                    className="border border-gray-200 rounded-lg p-3 space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">{u.zoomName}</p>
+                        {u.zoomEmail && (
+                          <p className="text-xs text-gray-400">{u.zoomEmail}</p>
+                        )}
+                        <p className="text-xs text-gray-400">
+                          참여 {durationMin}분 / {sessionDurationMin}분
+                        </p>
+                      </div>
+                      <select
+                        value={pendingMappings[u.zoomName] ?? ''}
+                        onChange={(e) =>
+                          setPendingMappings((prev) => ({
+                            ...prev,
+                            [u.zoomName]: e.target.value,
+                          }))
+                        }
+                        className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 min-w-[140px]"
+                      >
+                        <option value="">-- 매핑 안 함</option>
+                        {members.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name ?? m.email}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setZoomImportResult(null)
+                  setZoomMappingSessionId(null)
+                  setPendingMappings({})
+                }}
+              >
+                닫기
+              </Button>
+              <Button
+                onClick={handleSaveMappings}
+                disabled={
+                  savingMappings ||
+                  Object.values(pendingMappings).filter(Boolean).length === 0
+                }
+              >
+                {savingMappings
+                  ? '저장 중...'
+                  : `매핑 저장 (${Object.values(pendingMappings).filter(Boolean).length}명)`}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   )

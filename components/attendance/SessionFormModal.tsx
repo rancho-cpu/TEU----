@@ -52,6 +52,7 @@ export function SessionFormModal({
   const [endTime, setEndTime] = useState(
     editing?.end_time ? toLocalTime(editing.end_time) : ''
   )
+  const [zoomMeetingId, setZoomMeetingId] = useState(editing?.zoom_meeting_id ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -79,6 +80,7 @@ export function SessionFormModal({
       session_date: sessionDate,
       start_time: startISO,
       end_time: endISO,
+      zoom_meeting_id: type === 'zoom' || type === 'hybrid' ? (zoomMeetingId.trim() || null) : null,
     }
 
     if (isEdit) {
@@ -172,6 +174,24 @@ export function SessionFormModal({
               />
             </div>
           </div>
+
+          {/* Zoom Meeting ID (줌/혼합 유형일 때만 표시) */}
+          {(type === 'zoom' || type === 'hybrid') && (
+            <div className="space-y-1.5">
+              <Label>
+                Zoom Meeting ID{' '}
+                <span className="text-gray-400 font-normal text-xs">(데이터 가져오기에 필요)</span>
+              </Label>
+              <Input
+                placeholder="예: 123 456 7890"
+                value={zoomMeetingId}
+                onChange={(e) => setZoomMeetingId(e.target.value.replace(/\s/g, ''))}
+              />
+              <p className="text-xs text-gray-400">
+                Zoom 회의실 하단 &quot;회의 ID&quot; 숫자를 입력하세요
+              </p>
+            </div>
+          )}
 
           {error && (
             <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">

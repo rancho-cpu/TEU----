@@ -72,6 +72,52 @@ export interface ZoomRecording {
   }>
 }
 
+/** 회의 참석자 리포트 (회의 종료 후 사용 가능) */
+export interface ZoomParticipant {
+  name: string
+  user_email: string
+  join_time: string   // ISO timestamp
+  leave_time: string  // ISO timestamp
+  duration: number    // 초 단위 (누적)
+}
+
+export async function getZoomParticipants(meetingId: string): Promise<ZoomParticipant[]> {
+  const token = await getZoomAccessToken()
+  const all: ZoomParticipant[] = []
+  let nextPageToken = ''
+
+  do {
+    const url = `${ZOOM_API_BASE}/report/meetings/${meetingId}/participants?page_size=300${nextPageToken ? `&next_page_token=${nextPageToken}` : ''}`
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+
+    if (!res.ok) {
+      const body = await res.text()
+      throw new Error(`Zoom 참석자 오류: ${res.status} ${body}`)
+    }
+
+    const data = await res.json()
+    all.push(...(data.participants ?? []))
+    nextPageToken = data.next_page_token ?? ''
+  } while (nextPageToken)
+
+  // 동일 유저가 재접속 시 여러 row → 이메일(또는 이름) 기준 집계
+  const map = new Map<string, ZoomParticipant>()
+  for (const p of all) {
+    const key = p.user_email?.trim() || p.name?.trim()
+    if (!key) continue
+    const existing = map.get(key)
+    if (!existing) {
+      map.set(key, { ...p })
+    } else {
+      existing.duration += p.duration
+      if (p.join_time < existing.join_time) existing.join_time = p.join_time
+      if (p.leave_time > existing.leave_time) existing.leave_time = p.leave_time
+    }
+  }
+
+  return Array.from(map.values())
+}
+
 export async function getZoomRecordings(from: string, to: string): Promise<ZoomRecording[]> {
   const token = await getZoomAccessToken()
 

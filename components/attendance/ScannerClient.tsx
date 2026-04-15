@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { AttendanceSession } from '@/types'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Camera, CameraOff } from 'lucide-react'
+import { ArrowLeft, ScanLine, RotateCcw } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
@@ -21,111 +21,38 @@ interface ScanLog {
   message?: string
 }
 
+// UUID 형식 검증 (플랫폼 user_id)
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export function ScannerClient({ cohortId, sessions }: ScannerClientProps) {
-  const [selectedSession, setSelectedSession] = useState<string>(
-    sessions[0]?.id ?? ''
-  )
+  const [selectedSession, setSelectedSession] = useState(sessions[0]?.id ?? '')
   const [scanMode, setScanMode] = useState<'auto' | 'in' | 'out'>('auto')
-  const [scanning, setScanning] = useState(false)
   const [logs, setLogs] = useState<ScanLog[]>([])
   const [feedback, setFeedback] = useState<ScanLog | null>(null)
+  const [inputValue, setInputValue] = useState('')
+  const [processing, setProcessing] = useState(false)
 
-  const videoRef  = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const animRef   = useRef<number>(0)
-  const streamRef = useRef<MediaStream | null>(null)
-  const processingRef = useRef(false)
-  const cooldownMap   = useRef<Map<string, number>>(new Map())
+  const inputRef = useRef<HTMLInputElement>(null)
+  const feedbackTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const cooldownMap = useRef(new Map<string, number>())
 
-  // ── 카메라 시작 ────────────────────────────────────────────
-  const startCamera = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-      })
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
-      }
-      setScanning(true)
-    } catch {
-      alert('카메라 접근 권한을 허용해주세요.\n(설정 → 브라우저 → 카메라 허용)')
-    }
-  }, [])
-
-  // ── 카메라 중지 ────────────────────────────────────────────
-  const stopCamera = useCallback(() => {
-    if (animRef.current) cancelAnimationFrame(animRef.current)
-    streamRef.current?.getTracks().forEach((t) => t.stop())
-    streamRef.current = null
-    setScanning(false)
-  }, [])
-
-  useEffect(() => () => stopCamera(), [stopCamera])
-
-  // ── QR 스캔 루프 ───────────────────────────────────────────
+  // 항상 input에 포커스 유지
   useEffect(() => {
-    if (!scanning) return
+    inputRef.current?.focus()
+    const onDocClick = () => inputRef.current?.focus()
+    document.addEventListener('click', onDocClick)
+    return () => document.removeEventListener('click', onDocClick)
+  }, [])
 
-    let jsQR: ((data: Uint8ClampedArray, width: number, height: number) => { data: string } | null) | null = null
-    let mounted = true
+  const processUserId = async (userId: string) => {
+    if (!UUID_RE.test(userId)) return          // UUID 아니면 무시
+    if (!selectedSession || processing) return
 
-    async function init() {
-      const mod = await import('jsqr')
-      if (!mounted) return
-      jsQR = mod.default as typeof jsQR
-      requestFrame()
-    }
+    const now = Date.now()
+    if ((cooldownMap.current.get(userId) ?? 0) + 2500 > now) return // 쿨다운
+    cooldownMap.current.set(userId, now)
 
-    function requestFrame() {
-      animRef.current = requestAnimationFrame(tick)
-    }
-
-    function tick() {
-      if (!mounted || !jsQR) return
-      const video  = videoRef.current
-      const canvas = canvasRef.current
-      if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
-        requestFrame()
-        return
-      }
-
-      canvas.width  = video.videoWidth
-      canvas.height = video.videoHeight
-      const ctx = canvas.getContext('2d')!
-      ctx.drawImage(video, 0, 0)
-
-      const img  = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      const code = jsQR(img.data, img.width, img.height)
-
-      if (code?.data && !processingRef.current) {
-        const userId = code.data.trim()
-        const now    = Date.now()
-        const last   = cooldownMap.current.get(userId) ?? 0
-
-        if (now - last > 2500) {
-          cooldownMap.current.set(userId, now)
-          handleScan(userId)
-        }
-      }
-
-      requestFrame()
-    }
-
-    init()
-    return () => {
-      mounted = false
-      if (animRef.current) cancelAnimationFrame(animRef.current)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scanning, selectedSession, scanMode])
-
-  // ── QR 처리 ────────────────────────────────────────────────
-  const handleScan = async (userId: string) => {
-    if (!selectedSession || processingRef.current) return
-    processingRef.current = true
-
+    setProcessing(true)
     try {
       const res  = await fetch('/api/attendance/checkin', {
         method: 'POST',
@@ -135,199 +62,195 @@ export function ScannerClient({ cohortId, sessions }: ScannerClientProps) {
       const data = await res.json()
 
       const log: ScanLog = {
-        id: `${Date.now()}-${userId}`,
+        id: `${now}-${userId}`,
         userName: data.userName ?? userId,
         time: data.time ? new Date(data.time).toLocaleTimeString('ko-KR') : '',
         type: data.type ?? 'in',
-        success: res.ok && data.success,
+        success: !!(res.ok && data.success),
         message: data.alreadyComplete ? '이미 입퇴실 완료' : data.error,
       }
-
       setLogs((prev) => [log, ...prev.slice(0, 29)])
       setFeedback(log)
-      setTimeout(() => setFeedback(null), 2200)
+      clearTimeout(feedbackTimer.current)
+      feedbackTimer.current = setTimeout(() => setFeedback(null), 2500)
     } finally {
-      processingRef.current = false
+      setProcessing(false)
     }
   }
 
-  const selectedSessionData = sessions.find((s) => s.id === selectedSession)
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const val = inputValue.trim()
+      setInputValue('')
+      if (val) processUserId(val)
+    }
+  }
+
+  const resetLog = () => {
+    setLogs([])
+    setFeedback(null)
+  }
+
+  const offlineSessions = sessions.filter((s) => s.type === 'offline' || s.type === 'hybrid')
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col select-none">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* 헤더 */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-gray-800 shrink-0">
-        <Link href={`/${cohortId}/attendance`} className="text-gray-300 hover:text-white">
+      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
+        <Link href={`/${cohortId}/attendance`} className="text-gray-500 hover:text-gray-700">
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <h1 className="text-base font-bold">QR 출석 스캔</h1>
+        <div className="flex-1">
+          <h1 className="text-base font-bold text-gray-900">QR 출석 스캔</h1>
+          <p className="text-xs text-gray-400">USB 바코드 리더기 전용</p>
+        </div>
+        <button
+          onClick={resetLog}
+          className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1"
+        >
+          <RotateCcw className="w-3 h-3" />
+          초기화
+        </button>
       </div>
 
       {/* 세션 선택 + 모드 */}
-      <div className="px-4 py-3 bg-gray-800 border-t border-gray-700 shrink-0 space-y-2">
-        <div>
-          <label className="text-[11px] text-gray-400 uppercase tracking-wider block mb-1">
-            세션
-          </label>
-          {sessions.length === 0 ? (
-            <p className="text-sm text-amber-400">
-              먼저 출석 페이지에서 세션을 추가하세요
-            </p>
-          ) : (
-            <select
-              value={selectedSession}
-              onChange={(e) => setSelectedSession(e.target.value)}
-              className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 text-sm border border-gray-600 focus:outline-none focus:border-indigo-400"
-            >
-              {sessions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.title} · {s.session_date}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        <div>
-          <label className="text-[11px] text-gray-400 uppercase tracking-wider block mb-1">
-            스캔 모드
-          </label>
-          <div className="flex gap-2">
-            {(['auto', 'in', 'out'] as const).map((mode) => (
-              <button
-                key={mode}
-                onClick={() => setScanMode(mode)}
-                className={cn(
-                  'flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors',
-                  scanMode === mode
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                )}
+      <div className="bg-white border-b border-gray-200 px-4 py-3 space-y-3">
+        {offlineSessions.length === 0 ? (
+          <p className="text-sm text-amber-600 py-1">
+            오프라인/혼합 세션이 없습니다. 먼저 세션을 추가하세요.
+          </p>
+        ) : (
+          <>
+            <div>
+              <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">
+                세션
+              </label>
+              <select
+                value={selectedSession}
+                onChange={(e) => setSelectedSession(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"
               >
-                {mode === 'auto' ? '🔄 자동' : mode === 'in' ? '✅ 입실' : '🚪 퇴실'}
-              </button>
-            ))}
-          </div>
-        </div>
+                {offlineSessions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.title} · {s.session_date}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-2">
+              {(['auto', 'in', 'out'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setScanMode(mode)}
+                  className={cn(
+                    'flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors',
+                    scanMode === mode
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  )}
+                >
+                  {mode === 'auto' ? '🔄 자동' : mode === 'in' ? '✅ 입실' : '🚪 퇴실'}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
-      {/* 카메라 영역 */}
-      <div className="relative flex-1 bg-black overflow-hidden">
-        <video
-          ref={videoRef}
-          className="w-full h-full object-cover"
-          playsInline
-          muted
-          autoPlay
-        />
-        <canvas ref={canvasRef} className="hidden" />
-
-        {/* QR 가이드 프레임 */}
-        {scanning && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="relative w-56 h-56">
-              {/* 네 모서리 */}
-              {['top-0 left-0', 'top-0 right-0', 'bottom-0 left-0', 'bottom-0 right-0'].map(
-                (pos, i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      'absolute w-8 h-8 border-white',
-                      pos,
-                      i === 0 && 'border-t-2 border-l-2 rounded-tl-lg',
-                      i === 1 && 'border-t-2 border-r-2 rounded-tr-lg',
-                      i === 2 && 'border-b-2 border-l-2 rounded-bl-lg',
-                      i === 3 && 'border-b-2 border-r-2 rounded-br-lg'
-                    )}
-                  />
-                )
+      {/* 스캔 영역 */}
+      <div className="flex-1 p-4 space-y-4">
+        {/* 리더기 입력 캡처 영역 */}
+        <div className="relative">
+          <div
+            className={cn(
+              'rounded-2xl border-2 p-8 text-center transition-all cursor-default',
+              processing
+                ? 'border-blue-300 bg-blue-50'
+                : 'border-dashed border-gray-300 bg-white'
+            )}
+          >
+            <ScanLine
+              className={cn(
+                'w-12 h-12 mx-auto mb-3',
+                processing ? 'text-blue-400 animate-pulse' : 'text-indigo-300'
               )}
-            </div>
+            />
+            <p className="text-sm font-semibold text-gray-700">
+              {processing ? 'QR 처리 중...' : 'QR 코드를 스캔하세요'}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              USB 리더기로 학생의 QR 코드를 스캔하면 자동으로 출석이 기록됩니다
+            </p>
+            {/* 현재 입력값 표시 (디버그용, 리더기가 타이핑 중일 때만 잠깐 보임) */}
+            {inputValue && (
+              <p className="text-xs text-indigo-400 mt-2 font-mono">{inputValue}</p>
+            )}
           </div>
-        )}
+          {/* 보이지 않는 input이 실제 키보드 입력을 받음 */}
+          <input
+            ref={inputRef}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="absolute inset-0 opacity-0 cursor-default"
+            autoFocus
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+        </div>
 
-        {/* 피드백 오버레이 */}
+        {/* 스캔 피드백 */}
         {feedback && (
           <div
             className={cn(
-              'absolute inset-x-3 top-3 p-4 rounded-2xl text-center shadow-2xl transition-all',
+              'rounded-xl p-4 flex items-center gap-3 animate-in fade-in duration-150',
               feedback.success
-                ? 'bg-green-600'
-                : feedback.message
-                ? 'bg-amber-500'
-                : 'bg-red-600'
+                ? 'bg-green-50 border border-green-200'
+                : 'bg-amber-50 border border-amber-200'
             )}
           >
-            <div className="text-3xl mb-1">
+            <span className="text-3xl flex-shrink-0">
               {feedback.success
                 ? feedback.type === 'in' ? '✅' : '🚪'
-                : feedback.message ? '⚠️' : '❌'}
+                : '⚠️'}
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-gray-900 text-lg">{feedback.userName}</p>
+              <p className="text-sm text-gray-500">
+                {feedback.message
+                  ? feedback.message
+                  : `${feedback.type === 'in' ? '입실' : '퇴실'} · ${feedback.time}`}
+              </p>
             </div>
-            <p className="font-bold text-lg leading-tight">{feedback.userName}</p>
-            <p className="text-sm opacity-90 mt-0.5">
-              {feedback.message
-                ? feedback.message
-                : feedback.success
-                ? `${feedback.type === 'in' ? '입실' : '퇴실'} · ${feedback.time}`
-                : '오류 발생'}
+          </div>
+        )}
+
+        {/* 스캔 기록 */}
+        {logs.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
+              <span>스캔 기록</span>
+              <span className="bg-indigo-100 text-indigo-600 rounded-full px-2 py-0.5">
+                {logs.length}명
+              </span>
             </p>
+            <ul className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
+              {logs.map((log) => (
+                <li key={log.id} className="flex items-center gap-3 px-4 py-2.5">
+                  <span className="text-base flex-shrink-0">
+                    {log.success ? (log.type === 'in' ? '✅' : '🚪') : '⚠️'}
+                  </span>
+                  <span className="flex-1 text-sm font-medium text-gray-800 truncate">
+                    {log.userName}
+                  </span>
+                  <span className="text-xs text-gray-400 flex-shrink-0">
+                    {log.message ?? `${log.type === 'in' ? '입실' : '퇴실'} ${log.time}`}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
-        )}
-
-        {/* 시작 버튼 (카메라 꺼진 상태) */}
-        {!scanning && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 gap-4">
-            <Camera className="w-12 h-12 text-gray-400" />
-            <Button
-              onClick={startCamera}
-              disabled={!selectedSession}
-              className="bg-indigo-600 hover:bg-indigo-700 px-6"
-            >
-              카메라 시작
-            </Button>
-            {!selectedSession && (
-              <p className="text-xs text-gray-400">세션을 먼저 선택하세요</p>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* 카메라 중지 버튼 */}
-      {scanning && (
-        <div className="px-4 py-3 bg-gray-800 flex justify-center shrink-0 border-t border-gray-700">
-          <Button
-            onClick={stopCamera}
-            variant="outline"
-            className="border-gray-600 text-gray-300 hover:text-white hover:border-gray-400 text-sm"
-          >
-            <CameraOff className="w-4 h-4 mr-2" />
-            카메라 중지
-          </Button>
-        </div>
-      )}
-
-      {/* 스캔 기록 */}
-      <div className="bg-gray-800 border-t border-gray-700 shrink-0 max-h-48 overflow-y-auto">
-        {logs.length === 0 ? (
-          <p className="text-center text-gray-500 text-sm py-4">스캔 기록이 없습니다</p>
-        ) : (
-          <ul className="divide-y divide-gray-700">
-            {logs.map((log) => (
-              <li key={log.id} className="flex items-center gap-3 px-4 py-2.5">
-                <span className="text-xl flex-shrink-0">
-                  {log.success ? (log.type === 'in' ? '✅' : '🚪') : '⚠️'}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{log.userName}</p>
-                  <p className="text-xs text-gray-400">
-                    {log.time}
-                    {log.message && ` · ${log.message}`}
-                    {!log.message && ` · ${log.type === 'in' ? '입실' : '퇴실'}`}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
         )}
       </div>
     </div>
