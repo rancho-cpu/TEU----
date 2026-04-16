@@ -250,10 +250,21 @@ export default async function StatisticsPage({
     }
   }).sort((a, b) => b.percentage - a.percentage)
 
-  const surveyStats = (surveysData ?? []).map((s: { id: string; title: string }) => ({
-    title: s.title.length > 14 ? s.title.slice(0, 14) + '…' : s.title,
-    response_count: responseCountBySurvey[s.id] ?? 0,
-  }))
+  const surveyStats = allSurveyRows.map((s) => {
+    const respondedUserIds = studentMembers
+      .map((m) => (m.profile as unknown as ProfileRow | null)?.id ?? m.user_id)
+      .filter((uid) => responsesByUser[uid]?.has(s.id))
+    return {
+      id: s.id,
+      title: s.title,
+      chartTitle: s.title.length > 14 ? s.title.slice(0, 14) + '…' : s.title,
+      response_count: respondedUserIds.length,
+      total_members: totalMembers,
+      percentage: totalMembers > 0 ? Math.round((respondedUserIds.length / totalMembers) * 100) : 0,
+      responded_user_ids: respondedUserIds,
+      is_active: s.is_published,
+    }
+  })
 
   const avgRate = memberStats.length > 0
     ? Math.round(memberStats.reduce((s, m) => s + m.percentage, 0) / memberStats.length)

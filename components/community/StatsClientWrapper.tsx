@@ -50,8 +50,14 @@ interface MemberStatItem {
 }
 
 interface SurveyStatItem {
+  id: string
   title: string
+  chartTitle: string
   response_count: number
+  total_members: number
+  percentage: number
+  responded_user_ids: string[]
+  is_active: boolean
 }
 
 interface Props {
@@ -97,34 +103,16 @@ function getAttendTextColor(pct: number) {
 
 /* ─── 멤버 행 컴포넌트 ─────────────────────────────────────── */
 function MemberRow({
-  m, rank, page, pageSize, idx, isExpanded, onToggle,
-  allAssignments, allSurveys, attendanceMode,
+  m, rank, isExpanded, onToggle, allAssignments, allSurveys,
 }: {
   m: MemberStatItem
   rank: number
-  page: number
-  pageSize: number
-  idx: number
   isExpanded: boolean
   onToggle: () => void
   allAssignments: { id: string; title: string }[]
   allSurveys: { id: string; title: string }[]
-  attendanceMode: 'all' | 'offline' | 'zoom'
 }) {
   const rankLabel = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`
-
-  const attended = attendanceMode === 'offline' ? m.offline_sessions_attended
-    : attendanceMode === 'zoom' ? m.zoom_sessions_attended
-    : m.sessions_attended
-  const totalS = attendanceMode === 'offline' ? m.total_offline_sessions
-    : attendanceMode === 'zoom' ? m.total_zoom_sessions
-    : m.total_sessions
-  const partRate = attendanceMode === 'offline' ? m.offline_participation_rate
-    : attendanceMode === 'zoom' ? m.zoom_participation_rate
-    : m.participation_rate
-  const overallRate = attendanceMode === 'offline' ? m.offline_overall_rate
-    : attendanceMode === 'zoom' ? m.zoom_overall_rate
-    : m.overall_attendance_rate
 
   return (
     <div>
@@ -227,23 +215,6 @@ function MemberRow({
             })}
           </div>
 
-          {/* 출석 요약 */}
-          {totalS > 0 && (
-            <div className="border-t border-gray-200 pt-2 mt-1">
-              <p className="text-xs font-semibold text-gray-500 mb-1.5">출석 현황</p>
-              <div className="flex items-center gap-4">
-                <div className="text-center">
-                  <p className={cn('text-lg font-bold', getAttendTextColor(partRate))}>{partRate}%</p>
-                  <p className="text-[10px] text-gray-400">참여율<br/><span className="text-gray-500">{attended}회 참여</span></p>
-                </div>
-                <div className="h-8 w-px bg-gray-200" />
-                <div className="text-center">
-                  <p className={cn('text-lg font-bold', getAttendTextColor(overallRate))}>{overallRate}%</p>
-                  <p className="text-[10px] text-gray-400">전체 출석률<br/><span className="text-gray-500">{attended}/{totalS}회</span></p>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -439,6 +410,7 @@ export function StatsClientWrapper({
   const [exporting, setExporting] = useState(false)
   const [expandedMember, setExpandedMember] = useState<string | null>(null)
   const [expandedAssignment, setExpandedAssignment] = useState<string | null>(null)
+  const [expandedSurvey, setExpandedSurvey] = useState<string | null>(null)
   const [expandedAttMember, setExpandedAttMember] = useState<string | null>(null)
 
   const handleExport = async () => {
@@ -497,6 +469,20 @@ export function StatsClientWrapper({
           </div>
         </div>
 
+        {/* 진행분/전체 설명 레전드 */}
+        {tab === 'member' && memberStats.length > 0 && (
+          <div className="flex items-start gap-4 mb-4 bg-gray-50 rounded-lg px-4 py-3 text-xs text-gray-500">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-1.5 rounded-full bg-blue-500" />
+              <span><strong className="text-gray-700">진행분</strong>: 공개된 항목 기준 — 현재까지 얼마나 완수했는지</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-1.5 rounded-full bg-blue-300" />
+              <span><strong className="text-gray-700">전체</strong>: 전체 항목 기준 — 미래 과제 포함 종합 달성률</span>
+            </div>
+          </div>
+        )}
+
         {tab === 'member' && (
           <>
             {memberStats.length === 0 ? (
@@ -513,11 +499,9 @@ export function StatsClientWrapper({
                 <div className="divide-y divide-gray-50">
                   {paginated.map((m, idx) => (
                     <MemberRow key={m.user_id} m={m} rank={(page - 1) * pageSize + idx + 1}
-                      page={page} pageSize={pageSize} idx={idx}
                       isExpanded={expandedMember === m.user_id}
                       onToggle={() => setExpandedMember(expandedMember === m.user_id ? null : m.user_id)}
                       allAssignments={allAssignments} allSurveys={allSurveys}
-                      attendanceMode="all"
                     />
                   ))}
                 </div>
@@ -540,48 +524,99 @@ export function StatsClientWrapper({
 
         {tab === 'assignment' && (
           <>
-            {assignmentStats.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-8">과제 데이터가 없습니다.</p>
+            {assignmentStats.length === 0 && surveyStats.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-8">과제/설문 데이터가 없습니다.</p>
             ) : (
               <div className="space-y-3">
-                {assignmentStats.map((stat) => (
-                  <div key={stat.id} className="border border-gray-100 rounded-lg overflow-hidden">
-                    <button type="button" onClick={() => setExpandedAssignment(expandedAssignment === stat.id ? null : stat.id)}
-                      className="w-full px-4 py-3 hover:bg-gray-50 transition-colors text-left">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-sm font-medium text-gray-700 truncate">{stat.title}</span>
-                          {!stat.is_active && (
-                            <span className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full flex-shrink-0">미진행</span>
-                          )}
-                        </div>
-                        <span className="text-sm text-gray-500 ml-4 flex-shrink-0">
-                          {stat.submission_count} / {stat.total_members}명
-                          <span className={cn('ml-2 font-semibold', stat.is_active ? getRateTextColor(stat.percentage) : 'text-gray-400')}>{stat.percentage}%</span>
-                          <span className="ml-2 text-xs text-gray-400">{expandedAssignment === stat.id ? '▲' : '▼'}</span>
-                        </span>
+                {/* ── 글쓰기 과제 ── */}
+                {assignmentStats.length > 0 && (
+                  <>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1">글쓰기 과제</p>
+                    {assignmentStats.map((stat) => (
+                      <div key={stat.id} className="border border-gray-100 rounded-lg overflow-hidden">
+                        <button type="button" onClick={() => setExpandedAssignment(expandedAssignment === stat.id ? null : stat.id)}
+                          className="w-full px-4 py-3 hover:bg-gray-50 transition-colors text-left">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-sm font-medium text-gray-700 truncate">{stat.title}</span>
+                              {!stat.is_active && (
+                                <span className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full flex-shrink-0">마감</span>
+                              )}
+                            </div>
+                            <span className="text-sm text-gray-500 ml-4 flex-shrink-0">
+                              {stat.submission_count} / {stat.total_members}명
+                              <span className={cn('ml-2 font-semibold', stat.is_active ? getRateTextColor(stat.percentage) : 'text-gray-400')}>{stat.percentage}%</span>
+                              <span className="ml-2 text-xs text-gray-400">{expandedAssignment === stat.id ? '▲' : '▼'}</span>
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                            <div className={cn('h-full rounded-full transition-all duration-500', getRateColor(stat.percentage))} style={{ width: `${stat.percentage}%` }} />
+                          </div>
+                        </button>
+                        {expandedAssignment === stat.id && (
+                          <div className="px-4 pb-3 pt-1 border-t border-gray-100 bg-gray-50">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                              {memberStats.map((m) => {
+                                const done = stat.submitted_user_ids.includes(m.user_id)
+                                return (
+                                  <div key={m.user_id} className={cn('flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs', done ? 'bg-blue-50 text-blue-700' : 'bg-white text-gray-500 border border-gray-200')}>
+                                    <span className={cn('w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0', done ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-500')}>{done ? '✓' : '✗'}</span>
+                                    <span className="truncate">{m.name}</span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                        <div className={cn('h-full rounded-full transition-all duration-500', getRateColor(stat.percentage))} style={{ width: `${stat.percentage}%` }} />
+                    ))}
+                  </>
+                )}
+
+                {/* ── 설문 ── */}
+                {surveyStats.length > 0 && (
+                  <>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1 pt-2">설문</p>
+                    {surveyStats.map((stat) => (
+                      <div key={stat.id} className="border border-gray-100 rounded-lg overflow-hidden">
+                        <button type="button" onClick={() => setExpandedSurvey(expandedSurvey === stat.id ? null : stat.id)}
+                          className="w-full px-4 py-3 hover:bg-gray-50 transition-colors text-left">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-sm font-medium text-gray-700 truncate">{stat.title}</span>
+                              {!stat.is_active && (
+                                <span className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full flex-shrink-0">마감</span>
+                              )}
+                            </div>
+                            <span className="text-sm text-gray-500 ml-4 flex-shrink-0">
+                              {stat.response_count} / {stat.total_members}명
+                              <span className={cn('ml-2 font-semibold', stat.is_active ? getRateTextColor(stat.percentage) : 'text-gray-400')}>{stat.percentage}%</span>
+                              <span className="ml-2 text-xs text-gray-400">{expandedSurvey === stat.id ? '▲' : '▼'}</span>
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                            <div className={cn('h-full rounded-full transition-all duration-500 bg-green-500', '')} style={{ width: `${stat.percentage}%`, background: stat.percentage >= 80 ? '#22c55e' : stat.percentage >= 50 ? '#f59e0b' : '#ef4444' }} />
+                          </div>
+                        </button>
+                        {expandedSurvey === stat.id && (
+                          <div className="px-4 pb-3 pt-1 border-t border-gray-100 bg-gray-50">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                              {memberStats.map((m) => {
+                                const done = stat.responded_user_ids.includes(m.user_id)
+                                return (
+                                  <div key={m.user_id} className={cn('flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs', done ? 'bg-green-50 text-green-700' : 'bg-white text-gray-500 border border-gray-200')}>
+                                    <span className={cn('w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0', done ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-500')}>{done ? '✓' : '✗'}</span>
+                                    <span className="truncate">{m.name}</span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </button>
-                    {expandedAssignment === stat.id && (
-                      <div className="px-4 pb-3 pt-1 border-t border-gray-100 bg-gray-50">
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                          {memberStats.map((m) => {
-                            const done = stat.submitted_user_ids.includes(m.user_id)
-                            return (
-                              <div key={m.user_id} className={cn('flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs', done ? 'bg-blue-50 text-blue-700' : 'bg-white text-gray-500 border border-gray-200')}>
-                                <span className={cn('w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0', done ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-500')}>{done ? '✓' : '✗'}</span>
-                                <span className="truncate">{m.name}</span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                    ))}
+                  </>
+                )}
               </div>
             )}
           </>
@@ -654,7 +689,7 @@ export function StatsClientWrapper({
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={surveyStats} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-              <XAxis dataKey="title" tick={{ fontSize: 12, fill: '#6b7280' }} tickLine={false} axisLine={false} />
+              <XAxis dataKey="chartTitle" tick={{ fontSize: 12, fill: '#6b7280' }} tickLine={false} axisLine={false} />
               <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} tickLine={false} axisLine={false} allowDecimals={false} />
               <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '13px' }} formatter={(value) => [`${value}명`, '응답 수']} />
               <Bar dataKey="response_count" radius={[4, 4, 0, 0]}>
