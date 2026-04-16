@@ -181,13 +181,14 @@ export function AssignmentsClientWrapper({
 
   // ── 과제 공개 토글 ────────────────────────────────────────
   const handleTogglePublish = async (id: string, current: boolean) => {
+    const newPublished = !current
     const { data, error } = await supabase
       .from('assignments')
-      .update({ is_published: !current })
+      .update({ is_published: newPublished })
       .eq('id', id)
       .select().single()
     if (!error && data) {
-      setAssignments((prev) => prev.map((a) => a.id === id ? { ...a, is_published: !current } : a))
+      setAssignments((prev) => prev.map((a) => a.id === id ? { ...a, is_published: data.is_published } : a))
     }
   }
 

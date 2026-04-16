@@ -50,7 +50,8 @@
       "Bash(git -C \"C:\\\\Users\\\\tndus\\\\Desktop\\\\TEU 교육 플랫폼\" push)",
       "Bash(grep -B 2 -A 10 \"create policy.*posts\" \"C:\\\\Users\\\\tndus\\\\Desktop\\\\TEU 교육 플랫폼\\\\supabase\\\\migrations\"*.sql)",
       "Bash(node -e \"require\\('react-qr-code'\\); console.log\\('ok'\\)\")",
-      "Bash(node -e \"require\\('jsqr'\\); console.log\\('ok'\\)\")"
+      "Bash(node -e \"require\\('jsqr'\\); console.log\\('ok'\\)\")",
+      "Bash(node -e \"const m = require\\('./memory/project_vercel.json'\\); require\\('https'\\).request\\(m.url, {method:'POST'}, r => console.log\\(r.statusCode\\)\\).end\\(\\)\")"
     ]
   }
 }

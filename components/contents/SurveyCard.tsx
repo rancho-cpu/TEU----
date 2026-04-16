@@ -259,10 +259,11 @@ export function SurveyCard({ survey, responseCount, isAdmin, alreadyResponded, o
     setTogglingPublish(true)
     try {
       const supabase = createClient()
-      const { error } = await supabase.from('surveys').update({ is_published: !localPublished }).eq('id', survey.id)
+      const newPublished = !localPublished
+      const { error } = await supabase.from('surveys').update({ is_published: newPublished }).eq('id', survey.id)
       if (!error) {
-        setLocalPublished((v) => !v)
-        onPublishToggled?.(survey.id, !localPublished)
+        setLocalPublished(newPublished)
+        onPublishToggled?.(survey.id, newPublished)
       }
     } finally {
       setTogglingPublish(false)
