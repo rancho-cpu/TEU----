@@ -81,6 +81,7 @@ export function AttendanceClientWrapper({
 }: AttendanceClientWrapperProps) {
   const [sessions, setSessions] = useState<AttendanceSession[]>(initialSessions)
   const [records, setRecords] = useState<OfflineAttendance[]>(initialRecords)
+  const [sessionTab, setSessionTab] = useState<'offline' | 'zoom'>('offline')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editingSession, setEditingSession] = useState<AttendanceSession | null>(null)
@@ -200,15 +201,20 @@ export function AttendanceClientWrapper({
     setDeletingId(null)
   }
 
-  // 내 전체 출석률 (student)
+  // 탭 기준 필터링
+  const offlineSessions = sessions.filter((s) => s.type === 'offline' || s.type === 'hybrid')
+  const zoomSessions    = sessions.filter((s) => s.type === 'zoom'    || s.type === 'hybrid')
+  const tabSessions     = sessionTab === 'offline' ? offlineSessions : zoomSessions
+
+  // 내 전체 출석률 (student, 현재 탭 기준)
   const myOverallPct =
-    sessions.length === 0
+    tabSessions.length === 0
       ? null
       : Math.round(
-          sessions.reduce(
+          tabSessions.reduce(
             (sum, s) => sum + calcAttendancePct(getRecord(s.id, currentUserId), s),
             0
-          ) / sessions.length
+          ) / tabSessions.length
         )
 
   return (
@@ -248,6 +254,42 @@ export function AttendanceClientWrapper({
             </>
           )}
         </div>
+      </div>
+
+      {/* 탭: 오프라인 / 온라인(Zoom) */}
+      <div className="flex gap-1 border border-gray-200 rounded-xl p-1 mb-5 bg-white">
+        <button
+          onClick={() => { setSessionTab('offline'); setExpanded(null) }}
+          className={cn(
+            'flex-1 py-2 rounded-lg text-sm font-medium transition-colors',
+            sessionTab === 'offline'
+              ? 'bg-indigo-600 text-white shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          )}
+        >
+          오프라인
+          {offlineSessions.length > 0 && (
+            <span className={cn('ml-1.5 text-xs', sessionTab === 'offline' ? 'opacity-70' : 'text-gray-400')}>
+              {offlineSessions.length}회
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => { setSessionTab('zoom'); setExpanded(null) }}
+          className={cn(
+            'flex-1 py-2 rounded-lg text-sm font-medium transition-colors',
+            sessionTab === 'zoom'
+              ? 'bg-emerald-600 text-white shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          )}
+        >
+          온라인 (Zoom)
+          {zoomSessions.length > 0 && (
+            <span className={cn('ml-1.5 text-xs', sessionTab === 'zoom' ? 'opacity-70' : 'text-gray-400')}>
+              {zoomSessions.length}회
+            </span>
+          )}
+        </button>
       </div>
 
       {/* 내 QR 코드 패널 (student) */}
@@ -292,15 +334,19 @@ export function AttendanceClientWrapper({
       )}
 
       {/* 세션 목록 */}
-      {sessions.length === 0 ? (
+      {tabSessions.length === 0 ? (
         <div className="text-center py-20 text-gray-400">
           <CalendarCheck className="w-12 h-12 mx-auto mb-4 opacity-30" />
-          <p className="text-lg font-medium">아직 세션이 없습니다</p>
-          {isAdmin && <p className="text-sm mt-1">새 세션을 추가하여 출석을 관리하세요</p>}
+          <p className="text-lg font-medium">
+            {sessionTab === 'offline' ? '오프라인' : '온라인'} 세션이 없습니다
+          </p>
+          {isAdmin && (
+            <p className="text-sm mt-1">새 세션 버튼으로 추가하세요</p>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
-          {sessions.map((session, idx) => {
+          {tabSessions.map((session, idx) => {
             const isExpanded = expanded === session.id
             const sessionRecs = records.filter((r) => r.session_id === session.id)
             const presentCount = sessionRecs.filter((r) => r.check_in || r.check_out).length
@@ -310,14 +356,8 @@ export function AttendanceClientWrapper({
             const myRecord = getRecord(session.id, currentUserId)
             const myPct = calcAttendancePct(myRecord, session)
 
-            const typeLabel =
-              session.type === 'offline' ? '오프라인'
-              : session.type === 'zoom' ? 'Zoom'
-              : '혼합'
-            const typeBg =
-              session.type === 'offline' ? 'bg-indigo-500'
-              : session.type === 'zoom' ? 'bg-emerald-500'
-              : 'bg-amber-500'
+            const typeLabel = session.type === 'hybrid' ? '혼합' : sessionTab === 'offline' ? '오프라인' : 'Zoom'
+            const typeBg = sessionTab === 'zoom' ? 'bg-emerald-500' : 'bg-indigo-500'
 
             return (
               <div key={session.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
@@ -332,7 +372,7 @@ export function AttendanceClientWrapper({
                       typeBg
                     )}
                   >
-                    {sessions.length - idx}
+                    {tabSessions.length - idx}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
