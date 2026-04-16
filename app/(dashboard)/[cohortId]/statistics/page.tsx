@@ -1,8 +1,27 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { StatsClientWrapper } from '@/components/community/StatsClientWrapper'
-import type { Profile } from '@/types'
+import type { Profile, AttendanceSession, OfflineAttendance } from '@/types'
 import { BarChart2 } from 'lucide-react'
+
+/** 출석 % 계산 (AttendanceClientWrapper와 동일 로직) */
+function calcAttendancePct(
+  record: OfflineAttendance | undefined,
+  session: AttendanceSession
+): number {
+  if (!record?.check_in && !record?.check_out) return 0
+  const sessionStart = new Date(session.start_time).getTime()
+  const sessionEnd   = new Date(session.end_time).getTime()
+  const duration     = sessionEnd - sessionStart
+  if (duration <= 0) return 100
+  const from = record.check_in
+    ? Math.max(new Date(record.check_in).getTime(), sessionStart)
+    : sessionStart
+  const to = record.check_out
+    ? Math.min(new Date(record.check_out).getTime(), sessionEnd)
+    : sessionEnd
+  return Math.min(100, Math.max(0, Math.round(((to - from) / duration) * 100)))
+}
 
 export default async function StatisticsPage({
   params,
@@ -11,7 +30,7 @@ export default async function StatisticsPage({
 }) {
   const { cohortId } = await params
   const supabase = await createClient()
-  const adminSupabase = createServiceClient()
+  const service = createServiceClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -19,13 +38,8 @@ export default async function StatisticsPage({
   const { data: profileData } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   const isAdmin = (profileData as Pick<Profile, 'role'> | null)?.role === 'admin'
 
-  // 설문 ID 먼저 조회 (survey_responses 필터링에 필요)
   const { data: surveysData } = await supabase
-    .from('surveys')
-    .select('id, title')
-    .eq('cohort_id', cohortId)
-    .order('created_at', { ascending: true })
-
+    .from('surveys').select('id, title').eq('cohort_id', cohortId).order('created_at', { ascending: true })
   const surveyIds = (surveysData ?? []).map((s: { id: string }) => s.id)
 
   const [
@@ -33,30 +47,24 @@ export default async function StatisticsPage({
     { data: allSubmissionsData },
     { data: surveyResponsesData },
     { data: membersData },
+    { data: sessionsData },
   ] = await Promise.all([
-    supabase
-      .from('assignments')
-      .select('id, title, order_index')
-      .eq('cohort_id', cohortId)
+    supabase.from('assignments').select('id, title, order_index').eq('cohort_id', cohortId)
       .order('order_index', { ascending: true }),
-    adminSupabase
-      .from('assignment_submissions')
-      .select('assignment_id, user_id'),
+    service.from('assignment_submissions').select('assignment_id, user_id'),
     surveyIds.length > 0
-      ? adminSupabase
-          .from('survey_responses')
-          .select('survey_id, user_id')
-          .in('survey_id', surveyIds)
+      ? service.from('survey_responses').select('survey_id, user_id').in('survey_id', surveyIds)
       : Promise.resolve({ data: [] }),
-    supabase
-      .from('cohort_members')
+    supabase.from('cohort_members')
       .select('user_id, joined_at, profile:profiles!user_id(id, name, avatar_url, email, role)')
       .eq('cohort_id', cohortId),
+    service.from('attendance_sessions').select('*').eq('cohort_id', cohortId)
+      .order('session_date', { ascending: true }),
   ])
 
-  // 관리자 제외 멤버만 집계 대상
   type MemberRow = { user_id: string; joined_at: string; profile: unknown }
   type ProfileRow = { id: string; name: string | null; avatar_url: string | null; email: string; role: string }
+
   const studentMembers = ((membersData ?? []) as MemberRow[]).filter((m) => {
     const p = (m.profile as unknown) as ProfileRow | null
     return p?.role !== 'admin'
@@ -65,19 +73,16 @@ export default async function StatisticsPage({
   const totalMembers = studentMembers.length
   const assignmentIds = (assignmentsData ?? []).map((a: { id: string }) => a.id)
 
-  // 과제별 제출 수
+  // ── 과제/설문 집계 ────────────────────────────────────────────
   const subCountByAssignment: Record<string, number> = {}
-  const subByUserAssignment: Record<string, Set<string>> = {} // userId -> Set<assignmentId>
-
+  const subByUserAssignment: Record<string, Set<string>> = {}
   for (const row of (allSubmissionsData ?? []) as { assignment_id: string; user_id: string }[]) {
     if (!assignmentIds.includes(row.assignment_id)) continue
     subCountByAssignment[row.assignment_id] = (subCountByAssignment[row.assignment_id] ?? 0) + 1
     if (!subByUserAssignment[row.user_id]) subByUserAssignment[row.user_id] = new Set()
     subByUserAssignment[row.user_id].add(row.assignment_id)
   }
-
-  // 설문 응답 per user
-  const responsesByUser: Record<string, Set<string>> = {} // userId -> Set<surveyId>
+  const responsesByUser: Record<string, Set<string>> = {}
   const responseCountBySurvey: Record<string, number> = {}
   for (const row of (surveyResponsesData ?? []) as { survey_id: string; user_id: string }[]) {
     responseCountBySurvey[row.survey_id] = (responseCountBySurvey[row.survey_id] ?? 0) + 1
@@ -85,14 +90,29 @@ export default async function StatisticsPage({
     responsesByUser[row.user_id].add(row.survey_id)
   }
 
-  // 과제별 제출률 + 제출한 유저 목록 (학생만 기준)
+  // ── 출석 집계 ─────────────────────────────────────────────────
+  const sessions = (sessionsData ?? []) as AttendanceSession[]
+  const sessionIds = sessions.map((s) => s.id)
+
+  let attendanceRecords: OfflineAttendance[] = []
+  if (sessionIds.length > 0) {
+    const { data } = await service
+      .from('offline_attendance').select('*').in('session_id', sessionIds)
+    attendanceRecords = (data ?? []) as OfflineAttendance[]
+  }
+
+  // 오프라인/혼합 세션만 따로
+  const offlineSessions = sessions.filter((s) => s.type === 'offline' || s.type === 'hybrid')
+  // Zoom/혼합 세션만
+  const zoomSessions = sessions.filter((s) => s.type === 'zoom' || s.type === 'hybrid')
+
+  // ── 과제별 통계 ───────────────────────────────────────────────
   const assignmentStats = (assignmentsData ?? []).map((a: { id: string; title: string }) => {
     const submittedUserIds = studentMembers
       .map((m) => (m.profile as unknown as ProfileRow | null)?.id ?? m.user_id)
       .filter((uid) => subByUserAssignment[uid]?.has(a.id))
     return {
-      id: a.id,
-      title: a.title,
+      id: a.id, title: a.title,
       submission_count: submittedUserIds.length,
       total_members: totalMembers,
       percentage: totalMembers > 0 ? Math.round((submittedUserIds.length / totalMembers) * 100) : 0,
@@ -100,14 +120,77 @@ export default async function StatisticsPage({
     }
   })
 
-  // 멤버별 통합 제출률 (글쓰기 + 설문, 학생만)
   const totalItems = assignmentIds.length + surveyIds.length
+
+  // ── 멤버별 통합 통계 ──────────────────────────────────────────
   const memberStats = studentMembers.map((m) => {
     const profile = (m.profile as unknown) as ProfileRow | null
     const userId = profile?.id ?? m.user_id
+
+    // 과제/설문
     const assignmentsSubmitted = subByUserAssignment[userId]?.size ?? 0
     const surveysResponded = responsesByUser[userId]?.size ?? 0
     const completed = assignmentsSubmitted + surveysResponded
+
+    // 출석 (전체 세션)
+    const attendedSessions = sessions.filter((s) => {
+      const rec = attendanceRecords.find((r) => r.session_id === s.id && r.user_id === userId)
+      return !!(rec?.check_in || rec?.check_out)
+    })
+    const sessionsAttended = attendedSessions.length
+
+    // 참여율: 참여한 세션들 중 평균 출석%
+    const participationRate = sessionsAttended === 0 ? 0 : Math.round(
+      attendedSessions.reduce((sum, s) => {
+        const rec = attendanceRecords.find((r) => r.session_id === s.id && r.user_id === userId)
+        return sum + calcAttendancePct(rec, s)
+      }, 0) / sessionsAttended
+    )
+
+    // 전체 출석률: 전체 세션 대비 총 참여%
+    const overallAttendanceRate = sessions.length === 0 ? 0 : Math.round(
+      sessions.reduce((sum, s) => {
+        const rec = attendanceRecords.find((r) => r.session_id === s.id && r.user_id === userId)
+        return sum + calcAttendancePct(rec, s)
+      }, 0) / sessions.length
+    )
+
+    // 오프라인 출석
+    const offlineAttendedSessions = offlineSessions.filter((s) => {
+      const rec = attendanceRecords.find((r) => r.session_id === s.id && r.user_id === userId)
+      return !!(rec?.check_in || rec?.check_out)
+    })
+    const offlineParticipationRate = offlineAttendedSessions.length === 0 ? 0 : Math.round(
+      offlineAttendedSessions.reduce((sum, s) => {
+        const rec = attendanceRecords.find((r) => r.session_id === s.id && r.user_id === userId)
+        return sum + calcAttendancePct(rec, s)
+      }, 0) / offlineAttendedSessions.length
+    )
+    const offlineOverallRate = offlineSessions.length === 0 ? 0 : Math.round(
+      offlineSessions.reduce((sum, s) => {
+        const rec = attendanceRecords.find((r) => r.session_id === s.id && r.user_id === userId)
+        return sum + calcAttendancePct(rec, s)
+      }, 0) / offlineSessions.length
+    )
+
+    // Zoom 출석
+    const zoomAttendedSessions = zoomSessions.filter((s) => {
+      const rec = attendanceRecords.find((r) => r.session_id === s.id && r.user_id === userId)
+      return !!(rec?.check_in || rec?.check_out)
+    })
+    const zoomParticipationRate = zoomAttendedSessions.length === 0 ? 0 : Math.round(
+      zoomAttendedSessions.reduce((sum, s) => {
+        const rec = attendanceRecords.find((r) => r.session_id === s.id && r.user_id === userId)
+        return sum + calcAttendancePct(rec, s)
+      }, 0) / zoomAttendedSessions.length
+    )
+    const zoomOverallRate = zoomSessions.length === 0 ? 0 : Math.round(
+      zoomSessions.reduce((sum, s) => {
+        const rec = attendanceRecords.find((r) => r.session_id === s.id && r.user_id === userId)
+        return sum + calcAttendancePct(rec, s)
+      }, 0) / zoomSessions.length
+    )
+
     return {
       user_id: userId,
       name: profile?.name ?? profile?.email ?? '알 수 없음',
@@ -118,29 +201,36 @@ export default async function StatisticsPage({
       percentage: totalItems > 0 ? Math.round((completed / totalItems) * 100) : 0,
       submitted_assignment_ids: [...(subByUserAssignment[userId] ?? [])],
       responded_survey_ids: [...(responsesByUser[userId] ?? [])],
+      // 출석
+      sessions_attended: sessionsAttended,
+      total_sessions: sessions.length,
+      participation_rate: participationRate,
+      overall_attendance_rate: overallAttendanceRate,
+      // 오프라인
+      offline_sessions_attended: offlineAttendedSessions.length,
+      total_offline_sessions: offlineSessions.length,
+      offline_participation_rate: offlineParticipationRate,
+      offline_overall_rate: offlineOverallRate,
+      // zoom
+      zoom_sessions_attended: zoomAttendedSessions.length,
+      total_zoom_sessions: zoomSessions.length,
+      zoom_participation_rate: zoomParticipationRate,
+      zoom_overall_rate: zoomOverallRate,
     }
   }).sort((a, b) => b.percentage - a.percentage)
 
-  // 설문 응답 현황
   const surveyStats = (surveysData ?? []).map((s: { id: string; title: string }) => ({
     title: s.title.length > 14 ? s.title.slice(0, 14) + '…' : s.title,
     response_count: responseCountBySurvey[s.id] ?? 0,
   }))
 
-  // 멤버 가입 추이
-  const joinCountByMonth: Record<string, number> = {}
-  for (const row of (membersData ?? []) as { joined_at: string }[]) {
-    const month = row.joined_at.slice(0, 7)
-    joinCountByMonth[month] = (joinCountByMonth[month] ?? 0) + 1
-  }
-  const joinTrend = Object.entries(joinCountByMonth)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, count]) => ({ month: month.replace('-', '.'), count }))
-
-  // 평균 제출률
   const avgRate = memberStats.length > 0
     ? Math.round(memberStats.reduce((s, m) => s + m.percentage, 0) / memberStats.length)
     : 0
+
+  const avgAttendance = memberStats.length > 0 && sessions.length > 0
+    ? Math.round(memberStats.reduce((s, m) => s + m.overall_attendance_rate, 0) / memberStats.length)
+    : null
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -152,7 +242,6 @@ export default async function StatisticsPage({
         <p className="text-sm text-gray-500">기수 활동 현황을 한눈에 확인하세요.</p>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-4 gap-4 mb-8">
         <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
           <p className="text-2xl font-bold text-blue-600">{totalMembers}</p>
@@ -167,8 +256,10 @@ export default async function StatisticsPage({
           <p className="text-xs text-gray-500 mt-1">평균 달성률</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-          <p className="text-2xl font-bold text-purple-600">{surveyStats.length}</p>
-          <p className="text-xs text-gray-500 mt-1">설문</p>
+          <p className="text-2xl font-bold text-orange-500">
+            {avgAttendance !== null ? `${avgAttendance}%` : '-'}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">평균 출석률</p>
         </div>
       </div>
 
@@ -176,11 +267,13 @@ export default async function StatisticsPage({
         assignmentStats={assignmentStats}
         memberStats={memberStats}
         surveyStats={surveyStats}
-        joinTrend={joinTrend}
         totalMembers={totalMembers}
         isAdmin={isAdmin}
         allAssignments={(assignmentsData ?? []).map((a: { id: string; title: string }) => ({ id: a.id, title: a.title }))}
         allSurveys={(surveysData ?? []).map((s: { id: string; title: string }) => ({ id: s.id, title: s.title }))}
+        totalSessions={sessions.length}
+        totalOfflineSessions={offlineSessions.length}
+        totalZoomSessions={zoomSessions.length}
       />
     </div>
   )
