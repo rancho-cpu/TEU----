@@ -39,7 +39,7 @@ export default async function StatisticsPage({
   const isAdmin = (profileData as Pick<Profile, 'role'> | null)?.role === 'admin'
 
   const { data: surveysData } = await supabase
-    .from('surveys').select('id, title').eq('cohort_id', cohortId).order('created_at', { ascending: true })
+    .from('surveys').select('id, title, deadline').eq('cohort_id', cohortId).order('created_at', { ascending: true })
   const surveyIds = (surveysData ?? []).map((s: { id: string }) => s.id)
 
   const [
@@ -49,7 +49,7 @@ export default async function StatisticsPage({
     { data: membersData },
     { data: sessionsData },
   ] = await Promise.all([
-    supabase.from('assignments').select('id, title, order_index').eq('cohort_id', cohortId)
+    supabase.from('assignments').select('id, title, order_index, deadline').eq('cohort_id', cohortId)
       .order('order_index', { ascending: true }),
     service.from('assignment_submissions').select('assignment_id, user_id'),
     surveyIds.length > 0
@@ -71,7 +71,28 @@ export default async function StatisticsPage({
   })
 
   const totalMembers = studentMembers.length
-  const assignmentIds = (assignmentsData ?? []).map((a: { id: string }) => a.id)
+  const now = new Date()
+
+  // 진행된(마감 지났거나 마감 없는) 과제/설문
+  type AssignmentRow = { id: string; title: string; order_index: number; deadline: string | null }
+  type SurveyRow = { id: string; title: string; deadline: string | null }
+
+  const allAssignmentRows = (assignmentsData ?? []) as AssignmentRow[]
+  const allSurveyRows = (surveysData ?? []) as SurveyRow[]
+
+  const activeAssignmentIds = new Set(
+    allAssignmentRows
+      .filter((a) => !a.deadline || new Date(a.deadline) <= now)
+      .map((a) => a.id)
+  )
+  const activeSurveyIds = new Set(
+    allSurveyRows
+      .filter((s) => !s.deadline || new Date(s.deadline) <= now)
+      .map((s) => s.id)
+  )
+
+  const assignmentIds = allAssignmentRows.map((a) => a.id)
+  const activeItemsCount = activeAssignmentIds.size + activeSurveyIds.size
 
   // ── 과제/설문 집계 ────────────────────────────────────────────
   const subCountByAssignment: Record<string, number> = {}
@@ -107,7 +128,7 @@ export default async function StatisticsPage({
   const zoomSessions = sessions.filter((s) => s.type === 'zoom' || s.type === 'hybrid')
 
   // ── 과제별 통계 ───────────────────────────────────────────────
-  const assignmentStats = (assignmentsData ?? []).map((a: { id: string; title: string }) => {
+  const assignmentStats = allAssignmentRows.map((a) => {
     const submittedUserIds = studentMembers
       .map((m) => (m.profile as unknown as ProfileRow | null)?.id ?? m.user_id)
       .filter((uid) => subByUserAssignment[uid]?.has(a.id))
@@ -117,6 +138,7 @@ export default async function StatisticsPage({
       total_members: totalMembers,
       percentage: totalMembers > 0 ? Math.round((submittedUserIds.length / totalMembers) * 100) : 0,
       submitted_user_ids: submittedUserIds,
+      is_active: activeAssignmentIds.has(a.id),
     }
   })
 
@@ -127,10 +149,16 @@ export default async function StatisticsPage({
     const profile = (m.profile as unknown) as ProfileRow | null
     const userId = profile?.id ?? m.user_id
 
-    // 과제/설문
+    // 과제/설문 (전체 기준)
     const assignmentsSubmitted = subByUserAssignment[userId]?.size ?? 0
     const surveysResponded = responsesByUser[userId]?.size ?? 0
     const completed = assignmentsSubmitted + surveysResponded
+
+    // 진행된 항목 기준 완수율
+    const activeAssignmentsSubmitted = [...(subByUserAssignment[userId] ?? [])].filter((id) => activeAssignmentIds.has(id)).length
+    const activeSurveysResponded     = [...(responsesByUser[userId]     ?? [])].filter((id) => activeSurveyIds.has(id)).length
+    const activeCompleted = activeAssignmentsSubmitted + activeSurveysResponded
+    const activePercentage = activeItemsCount > 0 ? Math.round((activeCompleted / activeItemsCount) * 100) : 0
 
     // 출석 (전체 세션)
     const attendedSessions = sessions.filter((s) => {
@@ -216,6 +244,10 @@ export default async function StatisticsPage({
       total_zoom_sessions: zoomSessions.length,
       zoom_participation_rate: zoomParticipationRate,
       zoom_overall_rate: zoomOverallRate,
+      // 과제 진행률
+      active_completed: activeCompleted,
+      active_total: activeItemsCount,
+      active_percentage: activePercentage,
     }
   }).sort((a, b) => b.percentage - a.percentage)
 

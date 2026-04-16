@@ -17,6 +17,7 @@ interface AssignmentStatItem {
   total_members: number
   percentage: number
   submitted_user_ids: string[]
+  is_active: boolean
 }
 
 interface MemberStatItem {
@@ -29,6 +30,10 @@ interface MemberStatItem {
   percentage: number
   submitted_assignment_ids: string[]
   responded_survey_ids: string[]
+  // 진행된 항목 기준
+  active_completed: number
+  active_total: number
+  active_percentage: number
   // 출석
   sessions_attended: number
   total_sessions: number
@@ -150,21 +155,47 @@ function MemberRow({
         <div className="text-center">
           <span className="text-sm text-gray-600">{m.submitted}<span className="text-gray-400">/{m.total}</span></span>
         </div>
-        {/* 진행률 */}
-        <div className="flex items-center">
-          <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
-            <div className={cn('h-full rounded-full transition-all duration-500', getRateColor(m.percentage))} style={{ width: `${m.percentage}%` }} />
+        {/* 듀얼 진행률 바 */}
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-gray-400 w-9 text-right flex-shrink-0">진행분</span>
+            <div className="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden">
+              <div className={cn('h-full rounded-full transition-all duration-500', getRateColor(m.active_percentage))} style={{ width: `${m.active_percentage}%` }} />
+            </div>
+            <span className={cn('text-[10px] font-semibold w-8 flex-shrink-0', getRateTextColor(m.active_percentage))}>{m.active_percentage}%</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-gray-400 w-9 text-right flex-shrink-0">전체</span>
+            <div className="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden">
+              <div className={cn('h-full rounded-full transition-all duration-500 opacity-60', getRateColor(m.percentage))} style={{ width: `${m.percentage}%` }} />
+            </div>
+            <span className={cn('text-[10px] font-semibold w-8 flex-shrink-0', getRateTextColor(m.percentage))}>{m.percentage}%</span>
           </div>
         </div>
         {/* 달성률 */}
         <div className="text-right">
-          <span className={cn('text-sm font-semibold', getRateTextColor(m.percentage))}>{m.percentage}%</span>
+          <span className={cn('text-sm font-semibold', getRateTextColor(m.active_percentage))}>{m.active_percentage}%</span>
+          <p className="text-[10px] text-gray-400">전체 {m.percentage}%</p>
         </div>
       </button>
 
       {/* 드릴다운 */}
       {isExpanded && (
         <div className="mx-3 mb-3 mt-0.5 bg-gray-50 rounded-lg p-3 border border-gray-100 space-y-2">
+          {/* 진행분/전체 요약 */}
+          {m.total > 0 && (
+            <div className="flex items-center gap-4 pb-2 border-b border-gray-200">
+              <div className="text-center">
+                <p className={cn('text-lg font-bold', getRateTextColor(m.active_percentage))}>{m.active_percentage}%</p>
+                <p className="text-[10px] text-gray-400">진행분 달성률<br/><span className="text-gray-500">{m.active_completed}/{m.active_total}개</span></p>
+              </div>
+              <div className="h-8 w-px bg-gray-200" />
+              <div className="text-center">
+                <p className={cn('text-lg font-bold', getRateTextColor(m.percentage))}>{m.percentage}%</p>
+                <p className="text-[10px] text-gray-400">전체 달성률<br/><span className="text-gray-500">{m.submitted}/{m.total}개</span></p>
+              </div>
+            </div>
+          )}
           {/* 과제/설문 */}
           <div className="space-y-1.5">
             {allAssignments.length === 0 && allSurveys.length === 0 && (
@@ -477,7 +508,7 @@ export function StatsClientWrapper({
                   <Input placeholder="이름 검색..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-9 text-sm" />
                 </div>
                 <div className="grid grid-cols-[2fr_1fr_3fr_1fr] gap-3 px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100">
-                  <span>이름</span><span className="text-center">제출</span><span>진행률</span><span className="text-right">달성률</span>
+                  <span>이름</span><span className="text-center">제출</span><span>진행분 / 전체</span><span className="text-right">달성률</span>
                 </div>
                 <div className="divide-y divide-gray-50">
                   {paginated.map((m, idx) => (
@@ -518,10 +549,15 @@ export function StatsClientWrapper({
                     <button type="button" onClick={() => setExpandedAssignment(expandedAssignment === stat.id ? null : stat.id)}
                       className="w-full px-4 py-3 hover:bg-gray-50 transition-colors text-left">
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-sm font-medium text-gray-700 truncate max-w-xs">{stat.title}</span>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-sm font-medium text-gray-700 truncate">{stat.title}</span>
+                          {!stat.is_active && (
+                            <span className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full flex-shrink-0">미진행</span>
+                          )}
+                        </div>
                         <span className="text-sm text-gray-500 ml-4 flex-shrink-0">
                           {stat.submission_count} / {stat.total_members}명
-                          <span className={cn('ml-2 font-semibold', getRateTextColor(stat.percentage))}>{stat.percentage}%</span>
+                          <span className={cn('ml-2 font-semibold', stat.is_active ? getRateTextColor(stat.percentage) : 'text-gray-400')}>{stat.percentage}%</span>
                           <span className="ml-2 text-xs text-gray-400">{expandedAssignment === stat.id ? '▲' : '▼'}</span>
                         </span>
                       </div>
