@@ -182,13 +182,22 @@ export function AssignmentsClientWrapper({
   // ── 과제 공개 토글 ────────────────────────────────────────
   const handleTogglePublish = async (id: string, current: boolean) => {
     const newPublished = !current
-    const { data, error } = await supabase
-      .from('assignments')
-      .update({ is_published: newPublished })
-      .eq('id', id)
-      .select().single()
-    if (!error && data) {
-      setAssignments((prev) => prev.map((a) => a.id === id ? { ...a, is_published: data.is_published } : a))
+    try {
+      const { data, error } = await supabase
+        .from('assignments')
+        .update({ is_published: newPublished })
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) {
+        console.error('Failed to toggle assignment publish:', error)
+        alert(`공개 상태 변경 실패: ${error.message}`)
+      } else if (data) {
+        setAssignments((prev) => prev.map((a) => a.id === id ? { ...a, is_published: data.is_published } : a))
+      }
+    } catch (e) {
+      console.error('Toggle publish error:', e)
+      alert('공개 상태 변경 중 오류가 발생했습니다.')
     }
   }
 

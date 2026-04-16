@@ -260,11 +260,22 @@ export function SurveyCard({ survey, responseCount, isAdmin, alreadyResponded, o
     try {
       const supabase = createClient()
       const newPublished = !localPublished
-      const { error } = await supabase.from('surveys').update({ is_published: newPublished }).eq('id', survey.id)
-      if (!error) {
-        setLocalPublished(newPublished)
-        onPublishToggled?.(survey.id, newPublished)
+      const { data, error } = await supabase
+        .from('surveys')
+        .update({ is_published: newPublished })
+        .eq('id', survey.id)
+        .select()
+        .single()
+      if (error) {
+        console.error('Failed to toggle survey publish:', error)
+        alert(`공개 상태 변경 실패: ${error.message}`)
+      } else if (data) {
+        setLocalPublished(data.is_published)
+        onPublishToggled?.(survey.id, data.is_published)
       }
+    } catch (e) {
+      console.error('Toggle publish error:', e)
+      alert('공개 상태 변경 중 오류가 발생했습니다.')
     } finally {
       setTogglingPublish(false)
     }
