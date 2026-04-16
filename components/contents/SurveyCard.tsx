@@ -16,7 +16,7 @@ import {
 import { format, parseISO, isPast } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import type { Survey, SurveyQuestion, SurveyResponse } from '@/types'
-import { ClipboardList, Users, Star, BarChart2, MoreVertical, Trash2, Download, Pencil } from 'lucide-react'
+import { ClipboardList, Users, Star, BarChart2, MoreVertical, Trash2, Download, Pencil, Eye, EyeOff } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -30,6 +30,7 @@ interface SurveyCardProps {
   onDeleted?: (id: string) => void
   onResponded?: (surveyId: string) => void
   onEditRequest?: () => void
+  onPublishToggled?: (id: string, isPublished: boolean) => void
 }
 
 function formatDeadline(dateStr: string | null): string {
@@ -166,7 +167,7 @@ function TextResult({ answers }: { answers: string[] }) {
 // ────────────────────────────────────────────────────────────
 // Main component
 // ────────────────────────────────────────────────────────────
-export function SurveyCard({ survey, responseCount, isAdmin, alreadyResponded, onDeleted, onResponded, onEditRequest }: SurveyCardProps) {
+export function SurveyCard({ survey, responseCount, isAdmin, alreadyResponded, onDeleted, onResponded, onEditRequest, onPublishToggled }: SurveyCardProps) {
   const [mode, setMode] = useState<'idle' | 'submit' | 'results'>('idle')
   const [answers, setAnswers] = useState<AnswerMap>({})
   const [submitting, setSubmitting] = useState(false)
@@ -176,6 +177,8 @@ export function SurveyCard({ survey, responseCount, isAdmin, alreadyResponded, o
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [localPublished, setLocalPublished] = useState(survey.is_published)
+  const [togglingPublish, setTogglingPublish] = useState(false)
 
   // results state
   const [responses, setResponses] = useState<SurveyResponse[]>([])
@@ -249,6 +252,20 @@ export function SurveyCard({ survey, responseCount, isAdmin, alreadyResponded, o
       alert(e instanceof Error ? e.message : '삭제 실패')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const handleTogglePublish = async () => {
+    setTogglingPublish(true)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.from('surveys').update({ is_published: !localPublished }).eq('id', survey.id)
+      if (!error) {
+        setLocalPublished((v) => !v)
+        onPublishToggled?.(survey.id, !localPublished)
+      }
+    } finally {
+      setTogglingPublish(false)
     }
   }
 
@@ -348,6 +365,12 @@ export function SurveyCard({ survey, responseCount, isAdmin, alreadyResponded, o
                 <MoreVertical className="w-4 h-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleTogglePublish} disabled={togglingPublish}>
+                  {localPublished
+                    ? <><EyeOff className="w-4 h-4 mr-2" />비공개로 변경</>
+                    : <><Eye className="w-4 h-4 mr-2" />공개하기</>
+                  }
+                </DropdownMenuItem>
                 {onEditRequest && (
                   <DropdownMenuItem onClick={onEditRequest}>
                     <Pencil className="w-4 h-4 mr-2" />수정
@@ -370,6 +393,11 @@ export function SurveyCard({ survey, responseCount, isAdmin, alreadyResponded, o
               <ClipboardList className="w-3 h-3" />
               설문
             </Badge>
+            {isAdmin && (
+              <Badge className={`border-0 text-xs px-2 py-0.5 gap-1 ${localPublished ? 'bg-green-50 text-green-600 hover:bg-green-50' : 'bg-gray-100 text-gray-400 hover:bg-gray-100'}`}>
+                {localPublished ? <><Eye className="w-3 h-3" />공개</> : <><EyeOff className="w-3 h-3" />비공개</>}
+              </Badge>
+            )}
             {isExpired && (
               <Badge className="bg-gray-100 text-gray-500 hover:bg-gray-100 border-0 text-xs px-2 py-0.5">
                 마감

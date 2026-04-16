@@ -81,25 +81,29 @@ export default async function AssignmentsPage({
   const { data: { publicUrl: attBaseUrl } } = supabase.storage
     .from('assignment-attachments').getPublicUrl('')
 
-  const assignments: Assignment[] = (assignmentsData ?? []).map((a) => ({
-    ...a,
-    submission_count: submissionCountMap[a.id] ?? 0,
-    user_submitted: !!mySubMap[a.id],
-    my_submission: mySubMap[a.id]
-      ? {
-          ...mySubMap[a.id],
-          attachments: (mySubMap[a.id].attachments ?? []).map((att) => ({
-            ...att,
-            public_url: `${attBaseUrl}${att.storage_path}`,
-          })),
-        }
-      : null,
-  }))
+  const assignments: Assignment[] = (assignmentsData ?? [])
+    .filter((a) => isAdmin || a.is_published)
+    .map((a) => ({
+      ...a,
+      submission_count: submissionCountMap[a.id] ?? 0,
+      user_submitted: !!mySubMap[a.id],
+      my_submission: mySubMap[a.id]
+        ? {
+            ...mySubMap[a.id],
+            attachments: (mySubMap[a.id].attachments ?? []).map((att) => ({
+              ...att,
+              public_url: `${attBaseUrl}${att.storage_path}`,
+            })),
+          }
+        : null,
+    }))
 
-  const surveys: Survey[] = (surveysData ?? []).map((s) => ({
-    ...s,
-    response_count: surveyResponseCountMap[s.id] ?? 0,
-  }))
+  const surveys: Survey[] = (surveysData ?? [])
+    .filter((s) => isAdmin || s.is_published)
+    .map((s) => ({
+      ...s,
+      response_count: surveyResponseCountMap[s.id] ?? 0,
+    }))
 
   return (
     <AssignmentsClientWrapper

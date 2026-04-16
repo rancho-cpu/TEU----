@@ -14,6 +14,7 @@ import {
   ClipboardList, Plus, Trash2, CheckCircle2, Circle,
   Calendar, Loader2, Paperclip, X, FileText, FileImage,
   FileVideo, File, ChevronDown, ChevronUp, Users, PenLine, ClipboardCheck,
+  Eye, EyeOff,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SurveyCard } from '@/components/contents/SurveyCard'
@@ -176,6 +177,18 @@ export function AssignmentsClientWrapper({
     if (!confirm('이 과제를 삭제하시겠습니까?')) return
     await supabase.from('assignments').delete().eq('id', id)
     setAssignments((prev) => prev.filter((a) => a.id !== id))
+  }
+
+  // ── 과제 공개 토글 ────────────────────────────────────────
+  const handleTogglePublish = async (id: string, current: boolean) => {
+    const { data, error } = await supabase
+      .from('assignments')
+      .update({ is_published: !current })
+      .eq('id', id)
+      .select().single()
+    if (!error && data) {
+      setAssignments((prev) => prev.map((a) => a.id === id ? { ...a, is_published: !current } : a))
+    }
   }
 
   // ── 설문 삭제 ─────────────────────────────────────────────
@@ -410,6 +423,13 @@ export function AssignmentsClientWrapper({
                                   <Users className="w-3.5 h-3.5" />
                                   {a.submission_count}명 제출
                                 </button>
+                                <button
+                                  onClick={() => handleTogglePublish(a.id, a.is_published)}
+                                  className={cn('transition-colors', a.is_published ? 'text-green-500 hover:text-gray-400' : 'text-gray-300 hover:text-green-500')}
+                                  title={a.is_published ? '공개 중 (클릭하여 비공개)' : '비공개 (클릭하여 공개)'}
+                                >
+                                  {a.is_published ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                                </button>
                                 <button onClick={() => openEditAssignment(a)} className="text-gray-400 hover:text-indigo-500 transition-colors" title="수정">
                                   <PenLine className="w-4 h-4" />
                                 </button>
@@ -493,6 +513,9 @@ export function AssignmentsClientWrapper({
                     onDeleted={handleSurveyDeleted}
                     onResponded={handleSurveyResponded}
                     onEditRequest={isAdmin ? () => setEditingSurvey(s) : undefined}
+                    onPublishToggled={(id, isPublished) =>
+                      setSurveys((prev) => prev.map((sv) => sv.id === id ? { ...sv, is_published: isPublished } : sv))
+                    }
                   />
                 </div>
               ))}

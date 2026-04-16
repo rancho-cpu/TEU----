@@ -39,7 +39,7 @@ export default async function StatisticsPage({
   const isAdmin = (profileData as Pick<Profile, 'role'> | null)?.role === 'admin'
 
   const { data: surveysData } = await supabase
-    .from('surveys').select('id, title, deadline').eq('cohort_id', cohortId).order('created_at', { ascending: true })
+    .from('surveys').select('id, title, deadline, is_published').eq('cohort_id', cohortId).order('created_at', { ascending: true })
   const surveyIds = (surveysData ?? []).map((s: { id: string }) => s.id)
 
   const [
@@ -49,7 +49,7 @@ export default async function StatisticsPage({
     { data: membersData },
     { data: sessionsData },
   ] = await Promise.all([
-    supabase.from('assignments').select('id, title, order_index, deadline').eq('cohort_id', cohortId)
+    supabase.from('assignments').select('id, title, order_index, deadline, is_published').eq('cohort_id', cohortId)
       .order('order_index', { ascending: true }),
     service.from('assignment_submissions').select('assignment_id, user_id'),
     surveyIds.length > 0
@@ -71,23 +71,22 @@ export default async function StatisticsPage({
   })
 
   const totalMembers = studentMembers.length
-  const now = new Date()
 
-  // 진행된(마감 지났거나 마감 없는) 과제/설문
-  type AssignmentRow = { id: string; title: string; order_index: number; deadline: string | null }
-  type SurveyRow = { id: string; title: string; deadline: string | null }
+  // 공개된(is_published=true) 과제/설문 = 진행분
+  type AssignmentRow = { id: string; title: string; order_index: number; deadline: string | null; is_published: boolean }
+  type SurveyRow = { id: string; title: string; deadline: string | null; is_published: boolean }
 
   const allAssignmentRows = (assignmentsData ?? []) as AssignmentRow[]
   const allSurveyRows = (surveysData ?? []) as SurveyRow[]
 
   const activeAssignmentIds = new Set(
     allAssignmentRows
-      .filter((a) => !a.deadline || new Date(a.deadline) <= now)
+      .filter((a) => a.is_published)
       .map((a) => a.id)
   )
   const activeSurveyIds = new Set(
     allSurveyRows
-      .filter((s) => !s.deadline || new Date(s.deadline) <= now)
+      .filter((s) => s.is_published)
       .map((s) => s.id)
   )
 

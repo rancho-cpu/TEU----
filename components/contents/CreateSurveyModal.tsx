@@ -22,7 +22,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { createClient } from '@/lib/supabase/client'
 import type { Survey, SurveyQuestion } from '@/types'
-import { Plus, Trash2, GripVertical, X } from 'lucide-react'
+import { Plus, Trash2, GripVertical, X, Eye, EyeOff } from 'lucide-react'
 
 type QuestionType = 'text' | 'rating' | 'choice'
 
@@ -64,6 +64,7 @@ export function CreateSurveyModal({
       ? editingSurvey.questions.map((q) => ({ id: crypto.randomUUID(), ...q }))
       : [{ id: crypto.randomUUID(), type: 'text', label: '' }]
   )
+  const [isPublished, setIsPublished] = useState(editingSurvey?.is_published ?? false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -72,6 +73,7 @@ export function CreateSurveyModal({
     setDescription('')
     setDeadline('')
     setQuestions([{ id: crypto.randomUUID(), type: 'text', label: '' }])
+    setIsPublished(false)
     setError(null)
   }
 
@@ -167,6 +169,7 @@ export function CreateSurveyModal({
             description: description.trim() || null,
             questions: builtQuestions,
             deadline: deadline || null,
+            is_published: isPublished,
           })
           .eq('id', editingSurvey.id)
           .select()
@@ -182,6 +185,7 @@ export function CreateSurveyModal({
             description: description.trim() || null,
             questions: builtQuestions,
             deadline: deadline || null,
+            is_published: isPublished,
           })
           .select()
           .single()
@@ -245,6 +249,25 @@ export function CreateSurveyModal({
               onChange={(e) => setDeadline(e.target.value)}
               className="text-sm"
             />
+          </div>
+
+          {/* Publish toggle */}
+          <div className="flex items-center justify-between py-1">
+            <div>
+              <Label className="text-sm font-medium">공개 여부</Label>
+              <p className="text-xs text-gray-400 mt-0.5">공개된 설문만 학생에게 표시되고 진행분으로 집계됩니다</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsPublished((v) => !v)}
+              className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg border transition-colors ${
+                isPublished
+                  ? 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'
+                  : 'border-gray-200 bg-white text-gray-500 hover:border-indigo-200 hover:text-indigo-600'
+              }`}
+            >
+              {isPublished ? <><Eye className="w-4 h-4" /> 공개</> : <><EyeOff className="w-4 h-4" /> 비공개</>}
+            </button>
           </div>
 
           <Separator />
