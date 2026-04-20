@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { Sidebar } from '@/components/layout/Sidebar'
+import { DashboardShell } from '@/components/layout/DashboardShell'
 import { ChatBot } from '@/components/chatbot/ChatBot'
 import type { Cohort, Profile, Shortcut } from '@/types'
 
@@ -27,19 +27,18 @@ export default async function DashboardLayout({
   if (!currentCohort) notFound()
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar
+    <>
+      <DashboardShell
         cohortId={cohortId}
         cohorts={(cohorts ?? []) as Cohort[]}
         shortcuts={(shortcuts ?? []) as Shortcut[]}
         currentCohort={currentCohort as Cohort}
         profile={profileData as Profile | null}
         currentUserId={user.id}
-      />
-      <main className="flex-1 overflow-y-auto">
+      >
         {children}
-      </main>
+      </DashboardShell>
       <ChatBot cohortId={cohortId} />
-    </div>
+    </>
   )
 }

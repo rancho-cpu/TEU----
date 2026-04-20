@@ -105,7 +105,7 @@ export function ProfileClientWrapper({ profile, avatarBaseUrl }: Props) {
   const initials = (name || profile.email).charAt(0).toUpperCase()
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
+    <div className="p-4 md:p-6 max-w-2xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <User className="w-6 h-6 text-indigo-500" />

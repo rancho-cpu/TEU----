@@ -42,7 +42,7 @@ export default async function SettingsPage({
 
   if (!isAdmin) {
     return (
-      <div className="p-6 max-w-2xl mx-auto">
+      <div className="p-4 md:p-6 max-w-2xl mx-auto">
         <div className="flex flex-col items-center justify-center py-20 text-gray-400">
           <ShieldAlert className="w-14 h-14 mb-4 opacity-40" />
           <p className="text-lg font-medium text-gray-600">접근 권한이 없습니다</p>

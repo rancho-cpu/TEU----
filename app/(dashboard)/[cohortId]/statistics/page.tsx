@@ -275,7 +275,7 @@ export default async function StatisticsPage({
     : null
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-4 md:p-6 max-w-5xl mx-auto">
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <BarChart2 className="w-6 h-6 text-blue-500" />
