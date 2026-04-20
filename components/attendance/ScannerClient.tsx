@@ -36,6 +36,8 @@ export function ScannerClient({ cohortId, sessions }: ScannerClientProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const feedbackTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const cooldownMap = useRef(new Map<string, number>())
+  // selectedSession을 ref에도 동기화 → processUserId에서 최신 값 보장
+  const selectedSessionRef = useRef(selectedSession)
 
   // 항상 input에 포커스 유지
   useEffect(() => {
@@ -47,7 +49,7 @@ export function ScannerClient({ cohortId, sessions }: ScannerClientProps) {
 
   const processUserId = async (userId: string) => {
     if (!UUID_RE.test(userId)) return          // UUID 아니면 무시
-    if (!selectedSession || processing) return
+    if (!selectedSessionRef.current || processing) return
 
     const now = Date.now()
     if ((cooldownMap.current.get(userId) ?? 0) + 2500 > now) return // 쿨다운
@@ -58,7 +60,7 @@ export function ScannerClient({ cohortId, sessions }: ScannerClientProps) {
       const res  = await fetch('/api/attendance/checkin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: selectedSession, userId, scanMode }),
+        body: JSON.stringify({ sessionId: selectedSessionRef.current, userId, scanMode }),
       })
       const data = await res.json()
 
@@ -126,7 +128,10 @@ export function ScannerClient({ cohortId, sessions }: ScannerClientProps) {
               </label>
               <select
                 value={selectedSession}
-                onChange={(e) => setSelectedSession(e.target.value)}
+                onChange={(e) => {
+                  setSelectedSession(e.target.value)
+                  selectedSessionRef.current = e.target.value
+                }}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"
               >
                 {offlineSessions.map((s) => (

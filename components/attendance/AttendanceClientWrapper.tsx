@@ -36,14 +36,26 @@ function calcAttendancePct(
   const duration     = sessionEnd - sessionStart
   if (duration <= 0) return 100
 
-  const from = record.check_in
-    ? Math.max(new Date(record.check_in).getTime(), sessionStart)
-    : sessionStart
-  const to = record.check_out
-    ? Math.min(new Date(record.check_out).getTime(), sessionEnd)
-    : sessionEnd
+  const checkIn  = record.check_in  ? new Date(record.check_in).getTime()  : null
+  const checkOut = record.check_out ? new Date(record.check_out).getTime() : null
 
-  return Math.min(100, Math.max(0, Math.round(((to - from) / duration) * 100)))
+  // 세션 구간과의 실제 겹침 계산
+  const from = checkIn  ? Math.max(checkIn,  sessionStart) : sessionStart
+  const to   = checkOut ? Math.min(checkOut, sessionEnd)   : sessionEnd
+  const overlap = Math.max(0, to - from)
+
+  if (overlap > 0) {
+    return Math.min(100, Math.round((overlap / duration) * 100))
+  }
+
+  // 겹침이 없지만 기록은 존재 (세션 시간 오차 or 잘못된 세션에 스캔)
+  // → 실제 체류 시간(check_in ~ check_out)을 기준으로 계산
+  if (checkIn && checkOut && checkOut > checkIn) {
+    return Math.min(100, Math.round(((checkOut - checkIn) / duration) * 100))
+  }
+
+  // 한 쪽 기록만 있는 경우 출석으로 인정
+  return 100
 }
 
 function fmtTime(iso: string) {

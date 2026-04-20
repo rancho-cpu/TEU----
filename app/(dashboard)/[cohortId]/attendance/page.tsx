@@ -34,14 +34,14 @@ export default async function AttendancePage({
       .order('created_at', { ascending: false }),
     service
       .from('cohort_members')
-      .select('profile:profiles!user_id(id, name, email, avatar_url)')
+      .select('profile:profiles!user_id(id, name, email, avatar_url, role)')
       .eq('cohort_id', cohortId),
   ])
 
   const sessions = (sessionsData ?? []) as AttendanceSession[]
   const members = (membersData ?? [])
     .map((m) => (m.profile as unknown) as Profile | null)
-    .filter((p): p is Profile => !!p)
+    .filter((p): p is Profile => !!p && p.role !== 'admin')
 
   const sessionIds = sessions.map((s) => s.id)
   let attendanceRecords: OfflineAttendance[] = []
