@@ -39,10 +39,14 @@ export function ScannerClient({ cohortId, sessions }: ScannerClientProps) {
   // selectedSession을 ref에도 동기화 → processUserId에서 최신 값 보장
   const selectedSessionRef = useRef(selectedSession)
 
-  // 항상 input에 포커스 유지
+  // 항상 input에 포커스 유지 (단, 인터랙티브 요소 클릭 시엔 포커스 이동 안 함)
   useEffect(() => {
     inputRef.current?.focus()
-    const onDocClick = () => inputRef.current?.focus()
+    const onDocClick = (e: MouseEvent) => {
+      const tag = (e.target as HTMLElement).tagName.toLowerCase()
+      if (['select', 'option', 'button', 'a', 'input', 'textarea', 'label'].includes(tag)) return
+      inputRef.current?.focus()
+    }
     document.addEventListener('click', onDocClick)
     return () => document.removeEventListener('click', onDocClick)
   }, [])
