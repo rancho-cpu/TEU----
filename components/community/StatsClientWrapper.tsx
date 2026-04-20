@@ -119,7 +119,7 @@ function MemberRow({
       <button
         type="button"
         onClick={onToggle}
-        className="w-full grid grid-cols-[2fr_1fr_3fr_1fr] gap-3 items-center px-3 py-3 hover:bg-gray-50 transition-colors rounded-lg text-left"
+        className="w-full grid grid-cols-[1.5fr_0.6fr_2fr_0.7fr] md:grid-cols-[2fr_1fr_3fr_1fr] gap-3 items-center px-3 py-3 hover:bg-gray-50 transition-colors rounded-lg text-left"
       >
         {/* 이름 */}
         <div className="flex items-center gap-2.5 min-w-0">
@@ -279,7 +279,7 @@ function AttendanceTable({
   return (
     <>
       {/* 헤더 */}
-      <div className="grid grid-cols-[2fr_1fr_3fr_1fr] gap-3 px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100">
+      <div className="grid grid-cols-[1.5fr_0.6fr_2fr_0.7fr] md:grid-cols-[2fr_1fr_3fr_1fr] gap-3 px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100">
         <span>이름</span>
         <span className="text-center">참여</span>
         <span>참여율 / 전체 출석률</span>
@@ -300,7 +300,7 @@ function AttendanceTable({
               <button
                 type="button"
                 onClick={() => setExpandedMember(expandedMember === m.user_id ? null : m.user_id)}
-                className="w-full grid grid-cols-[2fr_1fr_3fr_1fr] gap-3 items-center px-3 py-3 hover:bg-gray-50 transition-colors rounded-lg text-left"
+                className="w-full grid grid-cols-[1.5fr_0.6fr_2fr_0.7fr] md:grid-cols-[2fr_1fr_3fr_1fr] gap-3 items-center px-3 py-3 hover:bg-gray-50 transition-colors rounded-lg text-left"
               >
                 {/* 이름 */}
                 <div className="flex items-center gap-2.5 min-w-0">
@@ -450,22 +450,23 @@ export function StatsClientWrapper({
   return (
     <div className="space-y-6">
       {/* ── 과제 제출률 ── */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex items-center gap-3 mb-5">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
+        <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-5">
           <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
             과제 제출률
           </h2>
           {isAdmin && (
             <Button size="sm" variant="outline" onClick={handleExport} disabled={exporting}
-              className="ml-auto mr-2 h-7 gap-1.5 text-xs text-green-700 border-green-300 hover:bg-green-50">
+              className="ml-auto h-7 gap-1.5 text-xs text-green-700 border-green-300 hover:bg-green-50">
               <Download className="w-3.5 h-3.5" />
-              {exporting ? '내보내는 중...' : '엑셀 내보내기'}
+              <span className="hidden sm:inline">{exporting ? '내보내는 중...' : '엑셀 내보내기'}</span>
+              <span className="sm:hidden">{exporting ? '...' : '엑셀'}</span>
             </Button>
           )}
-          <div className="flex gap-1 border border-gray-200 rounded-lg p-0.5">
-            <button onClick={() => setTab('member')} className={cn('px-3 py-1 rounded-md text-xs font-medium transition-colors', tab === 'member' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-gray-700')}>구성원 통계</button>
-            <button onClick={() => setTab('assignment')} className={cn('px-3 py-1 rounded-md text-xs font-medium transition-colors', tab === 'assignment' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-gray-700')}>과제별 현황</button>
+          <div className="flex gap-1 border border-gray-200 rounded-lg p-0.5 w-full sm:w-auto">
+            <button onClick={() => setTab('member')} className={cn('flex-1 sm:flex-initial px-3 py-1 rounded-md text-xs font-medium transition-colors', tab === 'member' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-gray-700')}>구성원 통계</button>
+            <button onClick={() => setTab('assignment')} className={cn('flex-1 sm:flex-initial px-3 py-1 rounded-md text-xs font-medium transition-colors', tab === 'assignment' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-gray-700')}>과제별 현황</button>
           </div>
         </div>
 
@@ -493,7 +494,7 @@ export function StatsClientWrapper({
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input placeholder="이름 검색..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-9 text-sm" />
                 </div>
-                <div className="grid grid-cols-[2fr_1fr_3fr_1fr] gap-3 px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                <div className="grid grid-cols-[1.5fr_0.6fr_2fr_0.7fr] md:grid-cols-[2fr_1fr_3fr_1fr] gap-3 px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100">
                   <span>이름</span><span className="text-center">제출</span><span>진행분 / 전체</span><span className="text-right">달성률</span>
                 </div>
                 <div className="divide-y divide-gray-50">
@@ -625,20 +626,20 @@ export function StatsClientWrapper({
 
       {/* ── 출석률 ── */}
       {hasAttendance && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center gap-3 mb-5">
+        <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
+          <div className="flex flex-wrap items-center gap-2 mb-5">
             <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
               출석률
             </h2>
-            <div className="ml-auto flex gap-1 border border-gray-200 rounded-lg p-0.5">
+            <div className="ml-auto flex gap-1 border border-gray-200 rounded-lg p-0.5 flex-wrap">
               {([
                 { key: 'all',     label: `전체 (${totalSessions}회)` },
                 ...(totalOfflineSessions > 0 ? [{ key: 'offline', label: `오프라인 (${totalOfflineSessions}회)` }] : []),
                 ...(totalZoomSessions > 0    ? [{ key: 'zoom',    label: `Zoom (${totalZoomSessions}회)` }]    : []),
               ] as { key: 'all' | 'offline' | 'zoom'; label: string }[]).map(({ key, label }) => (
                 <button key={key} onClick={() => { setAttendanceTab(key); setAttPage(1) }}
-                  className={cn('px-3 py-1 rounded-md text-xs font-medium transition-colors', attendanceTab === key ? 'bg-emerald-600 text-white' : 'text-gray-500 hover:text-gray-700')}>
+                  className={cn('px-2 md:px-3 py-1 rounded-md text-xs font-medium transition-colors', attendanceTab === key ? 'bg-emerald-600 text-white' : 'text-gray-500 hover:text-gray-700')}>
                   {label}
                 </button>
               ))}
@@ -646,13 +647,13 @@ export function StatsClientWrapper({
           </div>
 
           {/* 참여율 vs 전체 출석률 설명 */}
-          <div className="flex items-start gap-4 mb-4 bg-gray-50 rounded-lg px-4 py-3 text-xs text-gray-500">
+          <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4 mb-4 bg-gray-50 rounded-lg px-3 md:px-4 py-3 text-xs text-gray-500">
             <div className="flex items-center gap-1.5">
-              <div className="w-3 h-1.5 rounded-full bg-emerald-500" />
+              <div className="w-3 h-1.5 flex-shrink-0 rounded-full bg-emerald-500" />
               <span><strong className="text-gray-700">참여율</strong>: 참여한 회차 기준 — 얼마나 성실히 참여했는지</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-3 h-1.5 rounded-full bg-emerald-300" />
+              <div className="w-3 h-1.5 flex-shrink-0 rounded-full bg-emerald-300" />
               <span><strong className="text-gray-700">전체 출석률</strong>: 전체 회차 기준 — 불참 포함 종합 출석률</span>
             </div>
           </div>

@@ -1,6 +1,6 @@
 export function PageSkeleton() {
   return (
-    <div className="p-6 max-w-5xl mx-auto animate-pulse">
+    <div className="p-4 md:p-6 max-w-5xl mx-auto animate-pulse">
       {/* 헤더 */}
       <div className="mb-6">
         <div className="h-7 w-48 bg-gray-200 rounded-lg mb-2" />

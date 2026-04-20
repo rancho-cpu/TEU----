@@ -98,7 +98,7 @@ export function Sidebar({ cohortId, cohorts, shortcuts, currentCohort, profile, 
   }[]
 
   return (
-    <aside className="w-60 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col h-screen sticky top-0">
+    <aside className="w-60 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col h-screen">
       {/* Cohort Switcher */}
       <div className="p-4 border-b border-gray-200">
         <CohortSwitcher cohorts={cohorts} currentCohort={currentCohort} />
