@@ -299,15 +299,15 @@ export function ChatBot({ cohortId }: Props) {
             <div ref={bottomRef} />
           </div>
 
-          {/* 빠른 질문 칩 — 입력창 위 항상 표시 */}
+          {/* 빠른 질문 칩 — 2×3 그리드 */}
           <div className="px-3 pt-2.5 pb-1 border-t border-gray-100 bg-white">
             <p className="text-[10px] text-gray-400 font-medium mb-1.5 px-1">자주 묻는 질문</p>
-            <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+            <div className="grid grid-cols-3 gap-1.5">
               {QUICK_QUESTIONS.map((q) => (
                 <button
                   key={q}
                   onClick={() => handleQuick(q)}
-                  className="flex-shrink-0 text-xs bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-100 rounded-full px-3 py-1.5 transition-colors whitespace-nowrap"
+                  className="text-xs bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-100 rounded-lg px-2 py-2 transition-colors text-center leading-tight"
                 >
                   {q}
                 </button>
