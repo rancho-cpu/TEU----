@@ -16,9 +16,10 @@ import { CreateCohortDialog } from './CreateCohortDialog'
 interface CohortSwitcherProps {
   cohorts: Cohort[]
   currentCohort: Cohort
+  isAdmin?: boolean
 }
 
-export function CohortSwitcher({ cohorts, currentCohort }: CohortSwitcherProps) {
+export function CohortSwitcher({ cohorts, currentCohort, isAdmin = false }: CohortSwitcherProps) {
   const router = useRouter()
   const [showCreate, setShowCreate] = useState(false)
 
@@ -39,15 +40,21 @@ export function CohortSwitcher({ cohorts, currentCohort }: CohortSwitcherProps) 
               {c.name}
             </DropdownMenuItem>
           ))}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => setShowCreate(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            새 기수 추가
-          </DropdownMenuItem>
+          {isAdmin && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setShowCreate(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                새 기수 추가
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <CreateCohortDialog open={showCreate} onClose={() => setShowCreate(false)} />
+      {isAdmin && (
+        <CreateCohortDialog open={showCreate} onClose={() => setShowCreate(false)} />
+      )}
     </>
   )
 }
