@@ -371,18 +371,18 @@ export function PostCard({
 
           <div className="flex-1 min-w-0">
             {/* Meta */}
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-sm font-medium text-gray-800">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <span className="text-sm font-medium text-gray-800 truncate max-w-[40%]">
                 {post.profile?.name ?? '알 수 없음'}
               </span>
-              <span className="text-xs text-gray-400">{formatDate(post.created_at)}</span>
+              <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">{formatDate(post.created_at)}</span>
               {post.is_pinned && (
-                <span className="flex items-center gap-0.5 text-xs bg-red-500 text-white px-1.5 py-0.5 rounded font-medium">
+                <span className="flex items-center gap-0.5 text-xs bg-red-500 text-white px-1.5 py-0.5 rounded font-medium whitespace-nowrap flex-shrink-0">
                   <Pin className="w-2.5 h-2.5" />고정
                 </span>
               )}
               <span
-                className={`ml-auto text-xs font-medium px-2 py-0.5 rounded-full ${
+                className={`ml-auto text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0 ${
                   CATEGORY_COLORS[post.category] ?? 'bg-gray-100 text-gray-600'
                 }`}
               >
