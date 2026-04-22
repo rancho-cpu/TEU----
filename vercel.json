@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/deadline-notify",
       "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/cron/deadline-1h",
+      "schedule": "*/30 * * * *"
     }
   ]
 }

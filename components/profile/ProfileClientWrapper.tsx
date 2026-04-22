@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { Profile } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Camera, Loader2, CheckCircle2, User, Mail, Shield, Calendar, Phone } from 'lucide-react'
+import { Camera, Loader2, CheckCircle2, User, Mail, Shield, Calendar, Phone, Link2, Bell, BellOff, Tag } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -31,6 +31,8 @@ export function ProfileClientWrapper({ profile, avatarBaseUrl }: Props) {
   const [name, setName] = useState(profile.name ?? '')
   const [bio, setBio] = useState(profile.bio ?? '')
   const [phone, setPhone] = useState(profile.phone ?? '')
+  const [interests, setInterests] = useState(profile.interests ?? '')
+  const [linkedinUrl, setLinkedinUrl] = useState(profile.linkedin_url ?? '')
   const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url ?? '')
 
   const [saving, setSaving] = useState(false)
@@ -39,6 +41,62 @@ export function ProfileClientWrapper({ profile, avatarBaseUrl }: Props) {
 
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [avatarError, setAvatarError] = useState<string | null>(null)
+
+  // ── 푸시 알림 상태 ──────────────────────────────────────
+  const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('default')
+  const [pushLoading, setPushLoading] = useState(false)
+
+  useEffect(() => {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+      setPushStatus('unsupported')
+      return
+    }
+    setPushStatus(Notification.permission as 'default' | 'granted' | 'denied')
+    // 서비스 워커 등록
+    navigator.serviceWorker.register('/sw.js').catch(() => null)
+  }, [])
+
+  const handleEnablePush = async () => {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) return
+    setPushLoading(true)
+    try {
+      const permission = await Notification.requestPermission()
+      setPushStatus(permission as 'default' | 'granted' | 'denied')
+      if (permission !== 'granted') return
+
+      const reg = await navigator.serviceWorker.ready
+      const existing = await reg.pushManager.getSubscription()
+      const sub = existing ?? await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+      })
+
+      await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: sub.toJSON() }),
+      })
+    } catch {
+      // 사용자가 거부한 경우 무시
+    } finally {
+      setPushLoading(false)
+    }
+  }
+
+  const handleDisablePush = async () => {
+    setPushLoading(true)
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.getSubscription()
+      if (sub) await sub.unsubscribe()
+      await fetch('/api/push/subscribe', { method: 'DELETE' })
+      setPushStatus('default')
+    } catch {
+      // 무시
+    } finally {
+      setPushLoading(false)
+    }
+  }
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -62,7 +120,6 @@ export function ProfileClientWrapper({ profile, avatarBaseUrl }: Props) {
       if (upErr) throw upErr
 
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-      // 캐시 무력화용 쿼리스트링 추가
       const urlWithTs = `${publicUrl}?t=${Date.now()}`
 
       const { error: dbErr } = await supabase
@@ -89,7 +146,13 @@ export function ProfileClientWrapper({ profile, avatarBaseUrl }: Props) {
 
     const { error } = await supabase
       .from('profiles')
-      .update({ name: name.trim() || null, bio: bio.trim() || null, phone: phone.trim() || null })
+      .update({
+        name: name.trim() || null,
+        bio: bio.trim() || null,
+        phone: phone.trim() || null,
+        interests: interests.trim() || null,
+        linkedin_url: linkedinUrl.trim() || null,
+      })
       .eq('id', profile.id)
 
     if (error) {
@@ -186,6 +249,23 @@ export function ProfileClientWrapper({ profile, avatarBaseUrl }: Props) {
                 <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
                 가입일: {new Date(profile.created_at).toLocaleDateString('ko-KR')}
               </div>
+              {interests && (
+                <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                  <Tag className="w-3.5 h-3.5 flex-shrink-0" />
+                  {interests}
+                </div>
+              )}
+              {linkedinUrl && (
+                <a
+                  href={linkedinUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                >
+                  <Link2 className="w-3.5 h-3.5 flex-shrink-0" />
+                  LinkedIn 프로필
+                </a>
+              )}
               {profile.bio && (
                 <p className="text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2 mt-2">
                   {profile.bio}
@@ -236,6 +316,33 @@ export function ProfileClientWrapper({ profile, avatarBaseUrl }: Props) {
 
           <div className="space-y-2">
             <Label className="text-sm font-medium">
+              관심 분야 <span className="text-gray-400 font-normal text-xs">(선택)</span>
+            </Label>
+            <Input
+              value={interests}
+              onChange={(e) => setInterests(e.target.value)}
+              placeholder="예: UX 디자인, 마케팅, 데이터 분석"
+              maxLength={100}
+              className="text-sm"
+            />
+            <p className="text-xs text-gray-400">{interests.length}/100</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">
+              LinkedIn <span className="text-gray-400 font-normal text-xs">(선택)</span>
+            </Label>
+            <Input
+              value={linkedinUrl}
+              onChange={(e) => setLinkedinUrl(e.target.value)}
+              placeholder="https://linkedin.com/in/username"
+              type="url"
+              className="text-sm"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">
               소개글 <span className="text-gray-400 font-normal text-xs">(선택)</span>
             </Label>
             <Textarea
@@ -266,6 +373,54 @@ export function ProfileClientWrapper({ profile, avatarBaseUrl }: Props) {
             </Button>
           </div>
         </form>
+
+        {/* ── 알림 설정 ── */}
+        {pushStatus !== 'unsupported' && (
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-3">
+              <Bell className="w-4 h-4 text-gray-400" />
+              브라우저 푸시 알림
+            </h2>
+            {pushStatus === 'denied' ? (
+              <p className="text-sm text-gray-500">
+                브라우저에서 알림이 차단되어 있습니다. 브라우저 설정에서 알림을 허용한 후 다시 시도하세요.
+              </p>
+            ) : pushStatus === 'granted' ? (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-800">알림 활성화됨</p>
+                  <p className="text-xs text-gray-400 mt-0.5">공지사항, 과제 마감 1시간 전에 알림을 받습니다.</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDisablePush}
+                  disabled={pushLoading}
+                  className="gap-1.5 text-gray-600"
+                >
+                  <BellOff className="w-4 h-4" />
+                  {pushLoading ? '처리 중...' : '알림 끄기'}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-800">알림 비활성화됨</p>
+                  <p className="text-xs text-gray-400 mt-0.5">공지사항, 과제 마감 1시간 전 알림을 받으세요.</p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={handleEnablePush}
+                  disabled={pushLoading}
+                  className="gap-1.5"
+                >
+                  <Bell className="w-4 h-4" />
+                  {pushLoading ? '처리 중...' : '알림 켜기'}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
 
       </div>
     </div>
