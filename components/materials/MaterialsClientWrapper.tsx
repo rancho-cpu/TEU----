@@ -13,7 +13,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import {
   BookMarked, Plus, Trash2, Download, Paperclip, X,
-  FileText, FileImage, FileVideo, File, Loader2, Calendar,
+  FileText, FileImage, FileVideo, File, Loader2, Calendar, Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -47,6 +47,7 @@ interface FilePreview { file: File; objectUrl: string | null }
 export function MaterialsClientWrapper({ cohortId, initialMaterials, isAdmin }: Props) {
   const supabase = createClient()
   const [materials, setMaterials] = useState<Material[]>(initialMaterials)
+  const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [viewOpen, setViewOpen] = useState(false)
   const [viewing, setViewing] = useState<Material | null>(null)
@@ -150,16 +151,38 @@ export function MaterialsClientWrapper({ cohortId, initialMaterials, isAdmin }: 
         )}
       </div>
 
+      {/* 검색 */}
+      {materials.length > 0 && (
+        <div className="relative mb-5">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Input
+            placeholder="제목 또는 내용으로 검색..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 text-sm"
+          />
+        </div>
+      )}
+
       {/* 자료 목록 */}
-      {materials.length === 0 ? (
+      {(() => {
+        const filtered = search
+          ? materials.filter((m) => {
+              const q = search.toLowerCase()
+              return m.title.toLowerCase().includes(q) || m.content?.toLowerCase().includes(q)
+            })
+          : materials
+        return filtered.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 py-20 text-center text-gray-400">
           <BookMarked className="w-12 h-12 mx-auto mb-3 opacity-20" />
-          <p className="font-medium text-gray-500">등록된 자료가 없습니다.</p>
-          {isAdmin && <p className="text-sm mt-1">위의 "자료 등록" 버튼으로 추가하세요.</p>}
+          <p className="font-medium text-gray-500">
+            {search ? '검색 결과가 없습니다.' : '등록된 자료가 없습니다.'}
+          </p>
+          {isAdmin && !search && <p className="text-sm mt-1">위의 "자료 등록" 버튼으로 추가하세요.</p>}
         </div>
       ) : (
         <div className="space-y-3">
-          {materials.map((m) => (
+          {filtered.map((m) => (
             <div
               key={m.id}
               className="bg-white rounded-xl border border-gray-200 p-5 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer group"
@@ -224,7 +247,8 @@ export function MaterialsClientWrapper({ cohortId, initialMaterials, isAdmin }: 
             </div>
           ))}
         </div>
-      )}
+      )
+      })()}
 
       {/* 자료 상세 다이얼로그 */}
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
