@@ -308,12 +308,12 @@ export function MembersClientWrapper({
                       {getInitials(member.profile?.name)}
                     </AvatarFallback>
                   </Avatar>
-                  <p className="text-sm font-medium text-gray-900 truncate hover:text-blue-600 transition-colors">
+                  <span className="text-sm font-medium text-gray-900 truncate hover:text-blue-600 transition-colors">
                     {member.profile?.name ?? '이름 없음'}
                     {member.user_id === currentUserId && (
                       <span className="ml-1 text-xs text-blue-500">(나)</span>
                     )}
-                  </p>
+                  </span>
                 </button>
 
                 <div className="col-span-3">
@@ -374,12 +374,12 @@ export function MembersClientWrapper({
                       {getInitials(member.profile?.name)}
                     </AvatarFallback>
                   </Avatar>
-                  <p className="text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors">
+                  <span className="text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors">
                     {member.profile?.name ?? '이름 없음'}
                     {member.user_id === currentUserId && (
                       <span className="ml-2 text-xs text-blue-500">(나)</span>
                     )}
-                  </p>
+                  </span>
                 </button>
                 <div className="col-span-4">
                   <p className="text-sm text-gray-500 truncate">{member.profile?.email ?? '-'}</p>
