@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     .from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'admin') return NextResponse.json({ error: 'Admin only' }, { status: 403 })
 
-  const { cohortId, title } = await req.json()
+  const { cohortId, title, postId } = await req.json()
   if (!cohortId || !title) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
 
   const { data: members } = await supabase
@@ -34,15 +34,14 @@ export async function POST(req: NextRequest) {
       body: title,
       type: 'announcement',
       sender_id: user.id,
+      related_id: postId ?? null,
     }))
     await serviceSupabase.from('notifications').insert(rows)
 
-    await sendPushToUsers(
-      userIds,
-      `📢 새 공지사항`,
-      title,
-      `/${cohortId}/community`
-    )
+    const url = postId
+      ? `/${cohortId}/community?post=${postId}`
+      : `/${cohortId}/community`
+    await sendPushToUsers(userIds, `📢 새 공지사항`, title, url)
   }
 
   return NextResponse.json({ success: true })

@@ -55,7 +55,9 @@
       "Read(//c/Users/tndus/Desktop/**)",
       "Bash(find . -name \"*.tsx\" -exec grep -l \"w-60\\\\|w-48\\\\|grid-cols-[2-9]\" {} \\\\;)",
       "Bash(node -e \"const l = require\\('lucide-react'\\); console.log\\(Object.keys\\(l\\).filter\\(k => k.toLowerCase\\(\\).includes\\('linked'\\)\\)\\)\")",
-      "Bash(npx supabase *)"
+      "Bash(npx supabase *)",
+      "Bash(npx next *)",
+      "Bash(gh run *)"
     ]
   }
 }

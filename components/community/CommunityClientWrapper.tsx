@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import type { Post } from '@/types'
 import { PostCard } from './PostCard'
 import { CreatePostModal } from './CreatePostModal'
@@ -59,6 +60,19 @@ export function CommunityClientWrapper({
   const [searchQuery, setSearchQuery] = useState('')
   const [myPostsOnly, setMyPostsOnly] = useState(false)
   const [selectedMember, setSelectedMember] = useState<string>('') // admin: filter by user_id
+  const [highlightedId, setHighlightedId] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+  const targetPostId = searchParams.get('post')
+
+  useEffect(() => {
+    if (!targetPostId) return
+    const el = document.getElementById(`post-${targetPostId}`)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setHighlightedId(targetPostId)
+    const t = setTimeout(() => setHighlightedId(null), 2500)
+    return () => clearTimeout(t)
+  }, [targetPostId])
 
   const handlePostCreated = (newPost: Post) => setPosts((prev) => [newPost, ...prev])
   const handlePostDeleted = (postId: string) => setPosts((prev) => prev.filter((p) => p.id !== postId))
@@ -229,18 +243,26 @@ export function CommunityClientWrapper({
           </h3>
           <div className="space-y-2">
             {pinnedPosts.map((p) => (
-              <PostCard
+              <div
                 key={p.id}
-                post={p}
-                isAdmin={isAdmin}
-                cohortId={cohortId}
-                currentUserId={currentUserId}
-                currentUserName={currentUserName}
-                onDeleted={handlePostDeleted}
-                onLikeToggled={handleLikeToggled}
-                onReactionToggled={handleReactionToggled}
-                onUpdated={handlePostUpdated}
-              />
+                id={`post-${p.id}`}
+                className={cn(
+                  'transition-all rounded-xl',
+                  highlightedId === p.id && 'ring-2 ring-indigo-400 ring-offset-2'
+                )}
+              >
+                <PostCard
+                  post={p}
+                  isAdmin={isAdmin}
+                  cohortId={cohortId}
+                  currentUserId={currentUserId}
+                  currentUserName={currentUserName}
+                  onDeleted={handlePostDeleted}
+                  onLikeToggled={handleLikeToggled}
+                  onReactionToggled={handleReactionToggled}
+                  onUpdated={handlePostUpdated}
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -262,18 +284,26 @@ export function CommunityClientWrapper({
       ) : (
         <div className="space-y-4">
           {filtered.map((post) => (
-            <PostCard
+            <div
               key={post.id}
-              post={post}
-              isAdmin={isAdmin}
-              cohortId={cohortId}
-              currentUserId={currentUserId}
-              currentUserName={currentUserName}
-              onDeleted={handlePostDeleted}
-              onLikeToggled={handleLikeToggled}
-              onReactionToggled={handleReactionToggled}
-              onUpdated={handlePostUpdated}
-            />
+              id={`post-${post.id}`}
+              className={cn(
+                'transition-all rounded-xl',
+                highlightedId === post.id && 'ring-2 ring-indigo-400 ring-offset-2'
+              )}
+            >
+              <PostCard
+                post={post}
+                isAdmin={isAdmin}
+                cohortId={cohortId}
+                currentUserId={currentUserId}
+                currentUserName={currentUserName}
+                onDeleted={handlePostDeleted}
+                onLikeToggled={handleLikeToggled}
+                onReactionToggled={handleReactionToggled}
+                onUpdated={handlePostUpdated}
+              />
+            </div>
           ))}
         </div>
       )}

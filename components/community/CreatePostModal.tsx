@@ -139,7 +139,7 @@ export function CreatePostModal({ cohortId, open, onClose, onCreated, isAdmin = 
       fetch('/api/push/notice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cohortId, title: title.trim() }),
+        body: JSON.stringify({ cohortId, title: title.trim(), postId: post.id }),
       }).catch(() => null)
     }
 
