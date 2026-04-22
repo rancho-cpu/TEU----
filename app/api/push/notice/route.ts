@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/server'
+import { createAdminClient, createServiceClient } from '@/lib/supabase/server'
 import { sendPushToUsers } from '@/lib/push'
 
-// POST /api/push/notice — 공지 게시글 생성 시 전체 멤버에게 푸시 전송
+// POST /api/push/notice — 공지 게시글 생성 시 전체 멤버에게 푸시 + 인앱 알림 저장
 // Body: { cohortId, title, postId }
 export async function POST(req: NextRequest) {
   const supabase = await createAdminClient()
@@ -22,6 +22,17 @@ export async function POST(req: NextRequest) {
     .filter((id) => id !== user.id)
 
   if (userIds.length > 0) {
+    const serviceSupabase = createServiceClient()
+    const rows = userIds.map((userId) => ({
+      cohort_id: cohortId,
+      user_id: userId,
+      title: `📢 새 공지사항`,
+      body: title,
+      type: 'announcement',
+      sender_id: user.id,
+    }))
+    await serviceSupabase.from('notifications').insert(rows)
+
     await sendPushToUsers(
       userIds,
       `📢 새 공지사항`,
