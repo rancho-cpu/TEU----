@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+
+const toUTC = (localStr: string) => new Date(localStr).toISOString()
 import {
   Dialog,
   DialogContent,
@@ -81,8 +83,8 @@ export function CreateChallengeModal({
           emoji: emoji.trim() || '🔥',
           title: title.trim(),
           description: description.trim() || null,
-          start_at: startAt,
-          end_at: endAt,
+          start_at: toUTC(startAt),
+          end_at: toUTC(endAt),
           is_closed: false,
         })
         .select()

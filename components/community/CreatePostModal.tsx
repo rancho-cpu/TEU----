@@ -131,6 +131,16 @@ export function CreatePostModal({ cohortId, open, onClose, onCreated }: CreatePo
 
     onCreated({ ...post, comment_count: 0, likes_count: 0, star_count: 0, clap_count: 0, attachments })
     handleClose()
+
+    // 공지 카테고리 게시글이면 멤버 전체에게 웹 푸시
+    if (category === '공지') {
+      fetch('/api/push/notice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cohortId, title: title.trim() }),
+      }).catch(() => null)
+    }
+
     setLoading(false)
   }
 

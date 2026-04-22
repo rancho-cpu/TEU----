@@ -1,6 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+
+// datetime-local 입력값(로컬 시간)을 UTC ISO 문자열로 변환
+const toUTC = (localStr: string) => new Date(localStr).toISOString()
+// UTC ISO 문자열을 datetime-local 입력값(로컬 시간)으로 변환
+const toLocalInput = (utcStr: string) => {
+  const d = new Date(utcStr)
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+}
 import {
   Dialog,
   DialogContent,
@@ -57,7 +65,7 @@ export function CreateSurveyModal({
   const [title, setTitle] = useState(editingSurvey?.title ?? '')
   const [description, setDescription] = useState(editingSurvey?.description ?? '')
   const [deadline, setDeadline] = useState(
-    editingSurvey?.deadline ? editingSurvey.deadline.slice(0, 16) : ''
+    editingSurvey?.deadline ? toLocalInput(editingSurvey.deadline) : ''
   )
   const [questions, setQuestions] = useState<DraftQuestion[]>(
     editingSurvey?.questions?.length
@@ -168,7 +176,7 @@ export function CreateSurveyModal({
             title: title.trim(),
             description: description.trim() || null,
             questions: builtQuestions,
-            deadline: deadline || null,
+            deadline: deadline ? toUTC(deadline) : null,
             is_published: isPublished,
           })
           .eq('id', editingSurvey.id)
@@ -184,7 +192,7 @@ export function CreateSurveyModal({
             title: title.trim(),
             description: description.trim() || null,
             questions: builtQuestions,
-            deadline: deadline || null,
+            deadline: deadline ? toUTC(deadline) : null,
             is_published: isPublished,
           })
           .select()

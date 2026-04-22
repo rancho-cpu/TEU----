@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient, createServiceClient } from '@/lib/supabase/server'
+import { sendPushToUsers } from '@/lib/push'
 
 // GET /api/notifications?cohortId=xxx  → 내 알림 목록 (최신 50개)
 export async function GET(req: NextRequest) {
@@ -52,6 +53,13 @@ export async function POST(req: NextRequest) {
   const serviceSupabase = createServiceClient()
   const { error } = await serviceSupabase.from('notifications').insert(rows)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  await sendPushToUsers(
+    userIds as string[],
+    title.trim(),
+    body?.trim() ?? '',
+    `/${cohortId}/notifications`
+  )
 
   return NextResponse.json({ success: true, count: rows.length })
 }

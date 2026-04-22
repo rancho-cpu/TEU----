@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
-import { Search, UserPlus, Shield, User, Users, UserMinus, Plus, RefreshCw, UserCheck, Phone, Download } from 'lucide-react'
+import { Search, UserPlus, Shield, User, Users, UserMinus, Plus, RefreshCw, UserCheck, Phone, Download, Tag, Link2, Mail, Calendar } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface MembersClientWrapperProps {
@@ -51,6 +51,15 @@ export function MembersClientWrapper({
   const [candidateSearch, setCandidateSearch] = useState('')
   const [syncing, setSyncing] = useState(false)
   const [exporting, setExporting] = useState(false)
+
+  // 멤버 프로필 모달
+  const [profileMember, setProfileMember] = useState<CohortMember | null>(null)
+  const [profileOpen, setProfileOpen] = useState(false)
+
+  const openProfile = (member: CohortMember) => {
+    setProfileMember(member)
+    setProfileOpen(true)
+  }
 
   const supabase = createClient()
 
@@ -96,7 +105,6 @@ export function MembersClientWrapper({
       const res = await fetch(`/api/admin/sync-profiles?cohortId=${cohortId}`, { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      // 멤버 목록 새로고침
       window.location.reload()
     } catch (e) {
       alert(e instanceof Error ? e.message : '동기화 실패')
@@ -116,7 +124,6 @@ export function MembersClientWrapper({
   const safePage = Math.min(currentPage, totalPages)
   const paginated = filtered.slice((safePage - 1) * pageSize, safePage * pageSize)
 
-  // 검색어 변경 시 첫 페이지로 리셋
   const handleSearchChange = (v: string) => {
     setSearch(v)
     setCurrentPage(1)
@@ -294,7 +301,8 @@ export function MembersClientWrapper({
               /* 관리자 행 — 휴대폰 포함 */
               <div
                 key={member.user_id}
-                className="grid grid-cols-12 gap-3 px-5 py-4 items-center hover:bg-gray-50 transition-colors"
+                className="grid grid-cols-12 gap-3 px-5 py-4 items-center hover:bg-gray-50 transition-colors cursor-pointer"
+                onClick={() => openProfile(member)}
               >
                 <div className="col-span-3 flex items-center gap-3">
                   <Avatar className="w-8 h-8 flex-shrink-0">
@@ -303,12 +311,12 @@ export function MembersClientWrapper({
                       {getInitials(member.profile?.name)}
                     </AvatarFallback>
                   </Avatar>
-                  <p className="text-sm font-medium text-gray-900 truncate">
+                  <span className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600">
                     {member.profile?.name ?? '이름 없음'}
                     {member.user_id === currentUserId && (
                       <span className="ml-1 text-xs text-blue-500">(나)</span>
                     )}
-                  </p>
+                  </span>
                 </div>
 
                 <div className="col-span-3">
@@ -325,7 +333,7 @@ export function MembersClientWrapper({
                   )}
                 </div>
 
-                <div className="col-span-2">
+                <div className="col-span-2" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-2">
                     <Badge className={`text-xs ${member.profile?.role === 'admin' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                       {member.profile?.role === 'admin'
@@ -335,18 +343,18 @@ export function MembersClientWrapper({
                     </Badge>
                     {member.user_id !== currentUserId && (
                       <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-gray-400 hover:text-gray-700"
-                        onClick={() => handleToggleRole(member)} disabled={togglingId === member.user_id}>
+                        onClick={(e) => { e.stopPropagation(); handleToggleRole(member) }} disabled={togglingId === member.user_id}>
                         {togglingId === member.user_id ? '...' : '변경'}
                       </Button>
                     )}
                   </div>
                 </div>
 
-                <div className="col-span-2 flex items-center justify-between">
+                <div className="col-span-2 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
                   <p className="text-xs text-gray-400">{formatDate(member.joined_at)}</p>
                   {member.user_id !== currentUserId && (
                     <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-300 hover:text-red-500"
-                      onClick={() => handleRemove(member)} disabled={removingId === member.user_id}>
+                      onClick={(e) => { e.stopPropagation(); handleRemove(member) }} disabled={removingId === member.user_id}>
                       <UserMinus className="w-3.5 h-3.5" />
                     </Button>
                   )}
@@ -356,7 +364,8 @@ export function MembersClientWrapper({
               /* 일반 학생 행 — 휴대폰 없음 */
               <div
                 key={member.user_id}
-                className="grid grid-cols-12 gap-4 px-5 py-4 items-center hover:bg-gray-50 transition-colors"
+                className="grid grid-cols-12 gap-4 px-5 py-4 items-center hover:bg-gray-50 transition-colors cursor-pointer"
+                onClick={() => openProfile(member)}
               >
                 <div className="col-span-4 flex items-center gap-3">
                   <Avatar className="w-8 h-8 flex-shrink-0">
@@ -365,12 +374,12 @@ export function MembersClientWrapper({
                       {getInitials(member.profile?.name)}
                     </AvatarFallback>
                   </Avatar>
-                  <p className="text-sm font-medium text-gray-900">
+                  <span className="text-sm font-medium text-gray-900">
                     {member.profile?.name ?? '이름 없음'}
                     {member.user_id === currentUserId && (
                       <span className="ml-2 text-xs text-blue-500">(나)</span>
                     )}
-                  </p>
+                  </span>
                 </div>
                 <div className="col-span-4">
                   <p className="text-sm text-gray-500 truncate">{member.profile?.email ?? '-'}</p>
@@ -410,7 +419,6 @@ export function MembersClientWrapper({
 
           {/* 페이지 버튼 */}
           <div className="flex items-center gap-1">
-            {/* « 처음 */}
             <button
               onClick={() => setCurrentPage(1)}
               disabled={safePage === 1}
@@ -418,7 +426,6 @@ export function MembersClientWrapper({
             >
               «
             </button>
-            {/* ‹ 이전 */}
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={safePage === 1}
@@ -427,7 +434,6 @@ export function MembersClientWrapper({
               ‹
             </button>
 
-            {/* 페이지 번호 */}
             {getPageNumbers(totalPages, safePage).map((p, i) =>
               p === '...' ? (
                 <span key={`dots-${i}`} className="w-8 h-8 flex items-center justify-center text-gray-400 text-sm">
@@ -448,7 +454,6 @@ export function MembersClientWrapper({
               )
             )}
 
-            {/* › 다음 */}
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={safePage === totalPages}
@@ -456,7 +461,6 @@ export function MembersClientWrapper({
             >
               ›
             </button>
-            {/* » 마지막 */}
             <button
               onClick={() => setCurrentPage(totalPages)}
               disabled={safePage === totalPages}
@@ -467,6 +471,79 @@ export function MembersClientWrapper({
           </div>
         </div>
       )}
+
+      {/* ── 멤버 프로필 모달 ── */}
+      <Dialog open={profileOpen} onOpenChange={(o) => { setProfileOpen(o); if (!o) setProfileMember(null) }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="sr-only">멤버 프로필</DialogTitle>
+          </DialogHeader>
+          {profileMember && (
+            <>
+              <div className="flex flex-col items-center gap-3 pt-2 pb-1">
+                <Avatar className="w-20 h-20">
+                  <AvatarImage src={profileMember.profile?.avatar_url ?? undefined} />
+                  <AvatarFallback className="bg-blue-100 text-blue-600 text-2xl font-bold">
+                    {getInitials(profileMember.profile?.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="text-center">
+                  <p className="text-lg font-bold text-gray-900">{profileMember.profile?.name ?? '이름 없음'}</p>
+                  <Badge className={`text-xs mt-1 ${profileMember.profile?.role === 'admin' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                    {profileMember.profile?.role === 'admin'
+                      ? <span className="flex items-center gap-1"><Shield className="w-3 h-3" />관리자</span>
+                      : <span className="flex items-center gap-1"><User className="w-3 h-3" />수강생</span>
+                    }
+                  </Badge>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2.5 text-sm">
+                <div className="flex items-center gap-2.5 text-gray-600">
+                  <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <span className="truncate">{profileMember.profile?.email}</span>
+                </div>
+                {isAdmin && profileMember.profile?.phone && (
+                  <div className="flex items-center gap-2.5 text-gray-600">
+                    <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <span className="font-mono">{profileMember.profile.phone}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2.5 text-gray-500">
+                  <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <span>가입일: {formatDate(profileMember.joined_at)}</span>
+                </div>
+                {profileMember.profile?.interests && (
+                  <div className="flex items-start gap-2.5 text-gray-600">
+                    <Tag className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                    <span>{profileMember.profile.interests}</span>
+                  </div>
+                )}
+                {profileMember.profile?.linkedin_url && (
+                  <div className="flex items-center gap-2.5">
+                    <Link2 className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                    <a
+                      href={profileMember.profile.linkedin_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 hover:underline truncate"
+                    >
+                      LinkedIn 프로필
+                    </a>
+                  </div>
+                )}
+                {profileMember.profile?.bio && (
+                  <div className="mt-1 bg-gray-50 rounded-lg px-3 py-2.5 text-gray-600 text-xs leading-relaxed">
+                    {profileMember.profile.bio}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* 멤버 추가 Dialog */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
