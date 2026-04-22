@@ -29,7 +29,10 @@ export function NotificationsPanel({ cohortId, notifications, onClose }: Props) 
     if (n.type === 'deadline' && n.related_id) {
       router.push(`/${cohortId}/assignments`)
     } else if (n.type === 'community' || n.type === 'announcement') {
-      router.push(`/${cohortId}/community`)
+      const url = n.related_id
+        ? `/${cohortId}/community?post=${n.related_id}`
+        : `/${cohortId}/community`
+      router.push(url)
     }
   }
 
