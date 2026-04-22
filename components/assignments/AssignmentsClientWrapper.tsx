@@ -1,6 +1,12 @@
 'use client'
 
 import { useState, useRef } from 'react'
+
+const toUTC = (localStr: string) => new Date(localStr).toISOString()
+const toLocalInput = (utcStr: string) => {
+  const d = new Date(utcStr)
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+}
 import type { Assignment, AssignmentSubmission, AssignmentAttachment, Survey } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -129,7 +135,7 @@ export function AssignmentsClientWrapper({
         cohort_id: cohortId,
         title: newTitle.trim(),
         description: newDesc.trim() || null,
-        deadline: newDeadline || null,
+        deadline: newDeadline ? toUTC(newDeadline) : null,
         order_index: assignments.length,
       })
       .select().single()
@@ -148,7 +154,7 @@ export function AssignmentsClientWrapper({
     setEditTarget(a)
     setEditTitle(a.title)
     setEditDesc(a.description ?? '')
-    setEditDeadline(a.deadline ? a.deadline.slice(0, 16) : '')
+    setEditDeadline(a.deadline ? toLocalInput(a.deadline) : '')
     setEditError(null)
   }
 
@@ -159,7 +165,7 @@ export function AssignmentsClientWrapper({
     setEditing(true); setEditError(null)
     const { data, error } = await supabase
       .from('assignments')
-      .update({ title: editTitle.trim(), description: editDesc.trim() || null, deadline: editDeadline || null })
+      .update({ title: editTitle.trim(), description: editDesc.trim() || null, deadline: editDeadline ? toUTC(editDeadline) : null })
       .eq('id', editTarget.id)
       .select().single()
     if (error) { setEditError(error.message) }
