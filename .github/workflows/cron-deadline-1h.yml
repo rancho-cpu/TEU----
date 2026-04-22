@@ -1,0 +1,16 @@
+name: Deadline 1h Push
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call deadline-1h endpoint
+        run: |
+          curl -sS -f -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://teu-classroom.vercel.app/api/cron/deadline-1h
