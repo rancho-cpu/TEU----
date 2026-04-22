@@ -17,14 +17,15 @@ interface CreatePostModalProps {
   open: boolean
   onClose: () => void
   onCreated: (post: Post) => void
+  isAdmin?: boolean
 }
 
-const CATEGORIES = [
-  { value: '공지', label: '공지', color: 'bg-blue-100 text-blue-700' },
-  { value: '소개', label: '소개', color: 'bg-purple-100 text-purple-700' },
-  { value: '출결', label: '출결', color: 'bg-rose-100 text-rose-700' },
-  { value: '자유', label: '자유', color: 'bg-gray-100 text-gray-700' },
-  { value: '질문', label: '질문', color: 'bg-amber-100 text-amber-700' },
+const ALL_CATEGORIES = [
+  { value: '공지', label: '공지', color: 'bg-blue-100 text-blue-700', adminOnly: true },
+  { value: '소개', label: '소개', color: 'bg-purple-100 text-purple-700', adminOnly: false },
+  { value: '출결', label: '출결', color: 'bg-rose-100 text-rose-700', adminOnly: false },
+  { value: '자유', label: '자유', color: 'bg-gray-100 text-gray-700', adminOnly: false },
+  { value: '질문', label: '질문', color: 'bg-amber-100 text-amber-700', adminOnly: false },
 ]
 
 interface FilePreview {
@@ -45,7 +46,8 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
 }
 
-export function CreatePostModal({ cohortId, open, onClose, onCreated }: CreatePostModalProps) {
+export function CreatePostModal({ cohortId, open, onClose, onCreated, isAdmin = false }: CreatePostModalProps) {
+  const CATEGORIES = ALL_CATEGORIES.filter((c) => !c.adminOnly || isAdmin)
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState('자유')
   const [content, setContent] = useState('')
