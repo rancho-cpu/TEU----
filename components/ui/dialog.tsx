@@ -54,9 +54,9 @@ function DialogContent({
         data-slot="dialog-content"
         className={cn(
           "fixed top-1/2 left-1/2 z-50 grid w-full -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
-          className,
-          // 모바일에서 항상 화면 여백 확보 (사용처의 max-w-md 등을 덮어씀)
-          "max-w-[calc(100%-1.5rem)] sm:max-w-none"
+          // 모바일에서 좌우 여백 확보 (sm+ 에서는 사용처의 max-w-* 가 적용됨)
+          "max-sm:max-w-[calc(100%-1.5rem)]",
+          className
         )}
         {...props}
       >
