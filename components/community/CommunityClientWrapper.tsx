@@ -283,6 +283,7 @@ export function CommunityClientWrapper({
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreated={handlePostCreated}
+        isAdmin={isAdmin}
       />
     </div>
   )
