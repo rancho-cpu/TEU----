@@ -51,6 +51,16 @@ export async function GET(req: NextRequest) {
 
     if (!unsubmittedIds.length) continue
 
+    const rows = unsubmittedIds.map((userId) => ({
+      cohort_id: assignment.cohort_id,
+      user_id: userId,
+      title: '⏰ 마감 1시간 전!',
+      body: `"${assignment.title}" 과제 마감이 1시간 남았습니다. 아직 제출 전이라면 서두르세요!`,
+      type: 'deadline',
+      related_id: assignment.id,
+    }))
+    await supabase.from('notifications').insert(rows)
+
     await sendPushToUsers(
       unsubmittedIds,
       '⏰ 마감 1시간 전!',
