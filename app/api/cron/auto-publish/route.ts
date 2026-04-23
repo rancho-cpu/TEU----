@@ -13,13 +13,6 @@ export async function GET(req: NextRequest) {
   const supabase = createServiceClient()
   const now = new Date().toISOString()
 
-  // pending 현황 먼저 조회 (디버그용)
-  const [{ data: pendingA }, { data: pendingS }] = await Promise.all([
-    supabase.from('assignments').select('id, title, open_at, is_published').not('open_at', 'is', null).eq('is_published', false),
-    supabase.from('surveys').select('id, title, open_at, is_published').not('open_at', 'is', null).eq('is_published', false),
-  ])
-
-  // 실제 업데이트
   const [{ data: assignments, error: aErr }, { data: surveys, error: sErr }] = await Promise.all([
     supabase
       .from('assignments')
@@ -38,14 +31,10 @@ export async function GET(req: NextRequest) {
   ])
 
   return NextResponse.json({
-    now,
-    pending_assignments: pendingA ?? [],
-    pending_surveys: pendingS ?? [],
-    published_assignments: assignments ?? [],
-    published_surveys: surveys ?? [],
-    errors: {
-      assignments: aErr?.message ?? null,
-      surveys: sErr?.message ?? null,
-    },
+    message: 'Done',
+    assignments: assignments?.length ?? 0,
+    surveys: surveys?.length ?? 0,
+    total: (assignments?.length ?? 0) + (surveys?.length ?? 0),
+    errors: { assignments: aErr?.message ?? null, surveys: sErr?.message ?? null },
   })
 }
