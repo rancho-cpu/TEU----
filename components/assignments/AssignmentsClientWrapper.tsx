@@ -110,8 +110,10 @@ export function AssignmentsClientWrapper({
   // 관리자 제출 현황
   const [viewTarget, setViewTarget] = useState<Assignment | null>(null)
   const [viewSubs, setViewSubs] = useState<(AssignmentSubmission & { profile?: { name?: string | null; avatar_url?: string | null } })[]>([])
+  const [viewNonSubs, setViewNonSubs] = useState<{ user_id: string; name: string | null; avatar_url: string | null }[]>([])
   const [loadingView, setLoadingView] = useState(false)
   const [expandedSub, setExpandedSub] = useState<string | null>(null)
+  const [viewTab, setViewTab] = useState<'submitted' | 'not_submitted'>('submitted')
 
   // 내 제출 열기
   const [myViewTarget, setMyViewTarget] = useState<Assignment | null>(null)
@@ -289,13 +291,35 @@ export function AssignmentsClientWrapper({
   // ── 관리자: 제출 현황 보기 ────────────────────────────────
   const openView = async (a: Assignment) => {
     setViewTarget(a)
+    setViewTab('submitted')
     setLoadingView(true)
-    const { data } = await supabase
-      .from('assignment_submissions')
-      .select('*, profile:profiles!user_id(name, avatar_url, email), attachments:assignment_attachments(*)')
-      .eq('assignment_id', a.id)
-      .order('submitted_at', { ascending: true })
-    setViewSubs((data ?? []) as typeof viewSubs)
+
+    const [{ data: subsData }, { data: membersData }] = await Promise.all([
+      supabase
+        .from('assignment_submissions')
+        .select('*, profile:profiles!user_id(name, avatar_url, email), attachments:assignment_attachments(*)')
+        .eq('assignment_id', a.id)
+        .order('submitted_at', { ascending: true }),
+      supabase
+        .from('cohort_members')
+        .select('user_id, profile:profiles!user_id(name, avatar_url, role)')
+        .eq('cohort_id', cohortId),
+    ])
+
+    const subs = (subsData ?? []) as typeof viewSubs
+    setViewSubs(subs)
+
+    const submittedIds = new Set(subs.map((s) => s.user_id))
+    const nonSubs = (membersData ?? [])
+      .filter((m) => {
+        const p = m.profile as unknown as { role: string; name: string | null; avatar_url: string | null } | null
+        return p?.role !== 'admin' && !submittedIds.has(m.user_id as string)
+      })
+      .map((m) => {
+        const p = m.profile as unknown as { name: string | null; avatar_url: string | null } | null
+        return { user_id: m.user_id as string, name: p?.name ?? null, avatar_url: p?.avatar_url ?? null }
+      })
+    setViewNonSubs(nonSubs)
     setLoadingView(false)
   }
 
@@ -761,71 +785,121 @@ export function AssignmentsClientWrapper({
       </Dialog>
 
       {/* ── 관리자 제출 현황 모달 ── */}
-      <Dialog open={!!viewTarget} onOpenChange={() => { setViewTarget(null); setViewSubs([]) }}>
+      <Dialog open={!!viewTarget} onOpenChange={() => { setViewTarget(null); setViewSubs([]); setViewNonSubs([]) }}>
         <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0">
           <DialogHeader className="px-6 pt-6 pb-4 border-b">
             <DialogTitle>{viewTarget?.title} — 제출 현황</DialogTitle>
-            <p className="text-sm text-gray-500 mt-1">
-              {loadingView ? '불러오는 중...' : `${viewSubs.length}명 제출`}
-            </p>
+            {!loadingView && (
+              <p className="text-sm text-gray-500 mt-1">
+                제출 {viewSubs.length}명 · 미제출 {viewNonSubs.length}명
+              </p>
+            )}
           </DialogHeader>
+
+          {/* 탭 */}
+          <div className="flex border-b px-6">
+            <button
+              onClick={() => setViewTab('submitted')}
+              className={cn(
+                'py-2.5 px-4 text-sm font-medium border-b-2 transition-colors',
+                viewTab === 'submitted'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              )}
+            >
+              제출함 {!loadingView && <span className="ml-1 text-xs bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full">{viewSubs.length}</span>}
+            </button>
+            <button
+              onClick={() => setViewTab('not_submitted')}
+              className={cn(
+                'py-2.5 px-4 text-sm font-medium border-b-2 transition-colors',
+                viewTab === 'not_submitted'
+                  ? 'border-rose-500 text-rose-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              )}
+            >
+              미제출 {!loadingView && <span className="ml-1 text-xs bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-full">{viewNonSubs.length}</span>}
+            </button>
+          </div>
+
           <div className="flex-1 overflow-y-auto px-6 py-4">
             {loadingView ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
               </div>
-            ) : viewSubs.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">
-                <ClipboardList className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">아직 제출한 멤버가 없습니다.</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {viewSubs.map((sub) => (
-                  <div key={sub.id} className="border border-gray-200 rounded-xl overflow-hidden">
-                    <button
-                      className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors text-left"
-                      onClick={() => setExpandedSub(expandedSub === sub.id ? null : sub.id)}
-                    >
-                      <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-medium flex-shrink-0">
-                        {(sub.profile?.name ?? 'U')[0].toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900">{sub.profile?.name ?? '알 수 없음'}</p>
-                        <p className="text-xs text-gray-400">{new Date(sub.submitted_at).toLocaleString('ko-KR')}</p>
-                      </div>
-                      {(sub.attachments?.length ?? 0) > 0 && (
-                        <span className="text-xs text-gray-400 flex items-center gap-1">
-                          <Paperclip className="w-3 h-3" />{sub.attachments!.length}
-                        </span>
+            ) : viewTab === 'submitted' ? (
+              viewSubs.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <ClipboardList className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">아직 제출한 멤버가 없습니다.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {viewSubs.map((sub) => (
+                    <div key={sub.id} className="border border-gray-200 rounded-xl overflow-hidden">
+                      <button
+                        className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors text-left"
+                        onClick={() => setExpandedSub(expandedSub === sub.id ? null : sub.id)}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-medium flex-shrink-0">
+                          {(sub.profile?.name ?? 'U')[0].toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900">{sub.profile?.name ?? '알 수 없음'}</p>
+                          <p className="text-xs text-gray-400">{new Date(sub.submitted_at).toLocaleString('ko-KR')}</p>
+                        </div>
+                        {(sub.attachments?.length ?? 0) > 0 && (
+                          <span className="text-xs text-gray-400 flex items-center gap-1">
+                            <Paperclip className="w-3 h-3" />{sub.attachments!.length}
+                          </span>
+                        )}
+                        {expandedSub === sub.id ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                      </button>
+                      {expandedSub === sub.id && (
+                        <div className="px-4 pb-4 pt-1 border-t border-gray-100 space-y-3">
+                          {sub.content && (
+                            <p className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded-lg p-3">{sub.content}</p>
+                          )}
+                          {(sub.attachments ?? []).length > 0 && (
+                            <div className="space-y-1.5">
+                              {sub.attachments!.map((att) => {
+                                const Icon = getFileIcon(att.file_type)
+                                return (
+                                  <a key={att.id} href={att.public_url ?? att.storage_path} target="_blank" rel="noopener noreferrer"
+                                    className="flex items-center gap-2 px-3 py-2 bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors">
+                                    <Icon className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                    <span className="text-sm text-gray-700 flex-1 truncate">{att.file_name ?? '파일'}</span>
+                                    {att.file_size && <span className="text-xs text-gray-400">{formatBytes(att.file_size)}</span>}
+                                  </a>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
                       )}
-                      {expandedSub === sub.id ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-                    </button>
-                    {expandedSub === sub.id && (
-                      <div className="px-4 pb-4 pt-1 border-t border-gray-100 space-y-3">
-                        {sub.content && (
-                          <p className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded-lg p-3">{sub.content}</p>
-                        )}
-                        {(sub.attachments ?? []).length > 0 && (
-                          <div className="space-y-1.5">
-                            {sub.attachments!.map((att) => {
-                              const Icon = getFileIcon(att.file_type)
-                              return (
-                                <a key={att.id} href={att.public_url ?? att.storage_path} target="_blank" rel="noopener noreferrer"
-                                  className="flex items-center gap-2 px-3 py-2 bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors">
-                                  <Icon className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                                  <span className="text-sm text-gray-700 flex-1 truncate">{att.file_name ?? '파일'}</span>
-                                  {att.file_size && <span className="text-xs text-gray-400">{formatBytes(att.file_size)}</span>}
-                                </a>
-                              )
-                            })}
-                          </div>
-                        )}
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : (
+              viewNonSubs.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <CheckCircle2 className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">모든 멤버가 제출했습니다!</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {viewNonSubs.map((m) => (
+                    <div key={m.user_id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-rose-100 bg-rose-50/50">
+                      <div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-sm font-medium flex-shrink-0">
+                        {(m.name ?? 'U')[0].toUpperCase()}
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+                      <p className="text-sm font-medium text-gray-800">{m.name ?? '이름 없음'}</p>
+                      <span className="ml-auto text-xs text-rose-400 font-medium">미제출</span>
+                    </div>
+                  ))}
+                </div>
+              )
             )}
           </div>
         </DialogContent>
