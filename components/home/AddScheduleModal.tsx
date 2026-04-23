@@ -14,6 +14,27 @@ export const SECTION_TYPES = [
   '키노트', '그랜드챌린지', '퍼스펙티브', '익스포넨셜', '이노베이션툴킷', '개인/팀프로젝트',
 ]
 
+// 숫자만 추출해 HH:MM 형태로 실시간 포맷
+function fmtTime(raw: string): string {
+  const d = raw.replace(/\D/g, '').slice(0, 4)
+  if (d.length <= 2) return d
+  return d.slice(0, 2) + ':' + d.slice(2)
+}
+
+// blur 시 정규화: "930" → "09:30", "9" → "09:00"
+function normalizeTime(raw: string): string {
+  const d = raw.replace(/\D/g, '')
+  if (!d) return ''
+  let h: string, m: string
+  if (d.length === 1)      { h = '0' + d;         m = '00' }
+  else if (d.length === 2) { h = d;               m = '00' }
+  else if (d.length === 3) { h = '0' + d[0];     m = d.slice(1) }
+  else                     { h = d.slice(0, 2);  m = d.slice(2, 4) }
+  const hn = parseInt(h), mn = parseInt(m)
+  if (hn > 23 || mn > 59) return raw
+  return h + ':' + m
+}
+
 interface Props {
   cohortId: string
   open: boolean
@@ -123,9 +144,11 @@ export function AddScheduleModal({ cohortId, open, onClose, onSaved, editing }: 
               <Label className="text-xs">시작</Label>
               <Input
                 type="text"
+                inputMode="numeric"
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                placeholder="09:30"
+                onChange={(e) => setStartTime(fmtTime(e.target.value))}
+                onBlur={(e) => setStartTime(normalizeTime(e.target.value))}
+                placeholder="0930"
                 maxLength={5}
                 className="text-sm font-mono"
               />
@@ -134,9 +157,11 @@ export function AddScheduleModal({ cohortId, open, onClose, onSaved, editing }: 
               <Label className="text-xs">종료</Label>
               <Input
                 type="text"
+                inputMode="numeric"
                 value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                placeholder="11:00"
+                onChange={(e) => setEndTime(fmtTime(e.target.value))}
+                onBlur={(e) => setEndTime(normalizeTime(e.target.value))}
+                placeholder="1100"
                 maxLength={5}
                 className="text-sm font-mono"
               />
