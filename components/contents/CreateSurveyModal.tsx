@@ -64,6 +64,9 @@ export function CreateSurveyModal({
   const isEditMode = !!editingSurvey
   const [title, setTitle] = useState(editingSurvey?.title ?? '')
   const [description, setDescription] = useState(editingSurvey?.description ?? '')
+  const [openAt, setOpenAt] = useState(
+    editingSurvey?.open_at ? toLocalInput(editingSurvey.open_at) : ''
+  )
   const [deadline, setDeadline] = useState(
     editingSurvey?.deadline ? toLocalInput(editingSurvey.deadline) : ''
   )
@@ -79,6 +82,7 @@ export function CreateSurveyModal({
   const resetForm = () => {
     setTitle('')
     setDescription('')
+    setOpenAt('')
     setDeadline('')
     setQuestions([{ id: crypto.randomUUID(), type: 'text', label: '' }])
     setIsPublished(false)
@@ -176,6 +180,7 @@ export function CreateSurveyModal({
             title: title.trim(),
             description: description.trim() || null,
             questions: builtQuestions,
+            open_at: openAt ? toUTC(openAt) : null,
             deadline: deadline ? toUTC(deadline) : null,
             is_published: isPublished,
           })
@@ -192,8 +197,9 @@ export function CreateSurveyModal({
             title: title.trim(),
             description: description.trim() || null,
             questions: builtQuestions,
+            open_at: openAt ? toUTC(openAt) : null,
             deadline: deadline ? toUTC(deadline) : null,
-            is_published: isPublished,
+            is_published: openAt ? false : isPublished,
           })
           .select()
           .single()
@@ -245,19 +251,38 @@ export function CreateSurveyModal({
             />
           </div>
 
-          {/* Deadline */}
-          <div className="space-y-1.5">
-            <Label htmlFor="survey-deadline" className="text-sm font-medium">
-              마감일시
-            </Label>
-            <Input
-              id="survey-deadline"
-              type="datetime-local"
-              value={deadline}
-              onChange={(e) => setDeadline(e.target.value)}
-              className="text-sm"
-            />
+          {/* Open at / Deadline */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="survey-open-at" className="text-sm font-medium">
+                시작일시 <span className="text-gray-400 font-normal text-xs">(자동 공개)</span>
+              </Label>
+              <Input
+                id="survey-open-at"
+                type="datetime-local"
+                value={openAt}
+                onChange={(e) => setOpenAt(e.target.value)}
+                className="text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="survey-deadline" className="text-sm font-medium">
+                마감일시
+              </Label>
+              <Input
+                id="survey-deadline"
+                type="datetime-local"
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+                className="text-sm"
+              />
+            </div>
           </div>
+          {openAt && (
+            <p className="text-xs text-violet-500 bg-violet-50 px-3 py-2 rounded-lg -mt-1">
+              시작일이 설정되면 비공개로 생성되고, 해당 시간에 자동으로 공개됩니다.
+            </p>
+          )}
 
           {/* Publish toggle */}
           <div className="flex items-center justify-between py-1">

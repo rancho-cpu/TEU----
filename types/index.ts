@@ -71,6 +71,7 @@ export interface Survey {
   title: string
   description: string | null
   questions: SurveyQuestion[]
+  open_at: string | null
   deadline: string | null
   folder_id?: string | null
   is_published: boolean
@@ -156,6 +157,7 @@ export interface Assignment {
   cohort_id: string
   title: string
   description: string | null
+  open_at: string | null
   deadline: string | null
   order_index: number
   is_published: boolean

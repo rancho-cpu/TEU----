@@ -81,6 +81,7 @@ export function AssignmentsClientWrapper({
   const [createOpen, setCreateOpen] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newDesc, setNewDesc] = useState('')
+  const [newOpenAt, setNewOpenAt] = useState('')
   const [newDeadline, setNewDeadline] = useState('')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -92,6 +93,7 @@ export function AssignmentsClientWrapper({
   const [editTarget, setEditTarget] = useState<Assignment | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editDesc, setEditDesc] = useState('')
+  const [editOpenAt, setEditOpenAt] = useState('')
   const [editDeadline, setEditDeadline] = useState('')
   const [editing, setEditing] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
@@ -137,15 +139,17 @@ export function AssignmentsClientWrapper({
         cohort_id: cohortId,
         title: newTitle.trim(),
         description: newDesc.trim() || null,
+        open_at: newOpenAt ? toUTC(newOpenAt) : null,
         deadline: newDeadline ? toUTC(newDeadline) : null,
         order_index: assignments.length,
+        is_published: newOpenAt ? false : true,
       })
       .select().single()
     if (error) {
       setCreateError(error.message)
     } else if (data) {
       setAssignments((prev) => [...prev, { ...data, submission_count: 0, user_submitted: false, my_submission: null }])
-      setNewTitle(''); setNewDesc(''); setNewDeadline('')
+      setNewTitle(''); setNewDesc(''); setNewOpenAt(''); setNewDeadline('')
       setCreateOpen(false)
     }
     setCreating(false)
@@ -156,6 +160,7 @@ export function AssignmentsClientWrapper({
     setEditTarget(a)
     setEditTitle(a.title)
     setEditDesc(a.description ?? '')
+    setEditOpenAt(a.open_at ? toLocalInput(a.open_at) : '')
     setEditDeadline(a.deadline ? toLocalInput(a.deadline) : '')
     setEditError(null)
   }
@@ -167,13 +172,18 @@ export function AssignmentsClientWrapper({
     setEditing(true); setEditError(null)
     const { data, error } = await supabase
       .from('assignments')
-      .update({ title: editTitle.trim(), description: editDesc.trim() || null, deadline: editDeadline ? toUTC(editDeadline) : null })
+      .update({
+        title: editTitle.trim(),
+        description: editDesc.trim() || null,
+        open_at: editOpenAt ? toUTC(editOpenAt) : null,
+        deadline: editDeadline ? toUTC(editDeadline) : null,
+      })
       .eq('id', editTarget.id)
       .select().single()
     if (error) { setEditError(error.message) }
     else if (data) {
       setAssignments((prev) => prev.map((a) =>
-        a.id === editTarget.id ? { ...a, title: data.title, description: data.description, deadline: data.deadline } : a
+        a.id === editTarget.id ? { ...a, title: data.title, description: data.description, open_at: data.open_at, deadline: data.deadline } : a
       ))
       setEditTarget(null)
     }
@@ -454,6 +464,7 @@ export function AssignmentsClientWrapper({
             <div className="space-y-3">
               {assignments.map((a) => {
                 const dl = formatDeadline(a.deadline)
+                const isScheduled = !a.is_published && a.open_at && new Date(a.open_at) > new Date()
                 return (
                   <div key={a.id} className={cn(
                     'bg-white rounded-xl border transition-all',
@@ -474,8 +485,14 @@ export function AssignmentsClientWrapper({
                               {a.description && (
                                 <p className="text-sm text-gray-500 mt-1 whitespace-pre-wrap">{a.description}</p>
                               )}
+                              {isScheduled && (
+                                <p className="text-xs mt-1.5 flex items-center gap-1 text-violet-500 font-medium">
+                                  <Calendar className="w-3.5 h-3.5" />
+                                  {new Date(a.open_at!).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 자동 공개 예정
+                                </p>
+                              )}
                               {dl && (
-                                <p className={cn('text-xs mt-2 flex items-center gap-1', dl.color)}>
+                                <p className={cn('text-xs mt-1.5 flex items-center gap-1', dl.color)}>
                                   <Calendar className="w-3.5 h-3.5" />
                                   {dl.str} · <span className="font-medium">{dl.label}</span>
                                 </p>
@@ -610,10 +627,21 @@ export function AssignmentsClientWrapper({
               <Label className="text-sm font-medium">설명 <span className="text-gray-400 font-normal">(선택)</span></Label>
               <Textarea value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="과제 내용, 제출 방법 등을 설명해주세요" className="resize-none min-h-[80px] text-sm" />
             </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">마감일 <span className="text-gray-400 font-normal">(선택)</span></Label>
-              <Input type="datetime-local" value={newDeadline} onChange={(e) => setNewDeadline(e.target.value)} className="text-sm" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">시작일 <span className="text-gray-400 font-normal">(자동 공개)</span></Label>
+                <Input type="datetime-local" value={newOpenAt} onChange={(e) => setNewOpenAt(e.target.value)} className="text-sm" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">마감일 <span className="text-gray-400 font-normal">(선택)</span></Label>
+                <Input type="datetime-local" value={newDeadline} onChange={(e) => setNewDeadline(e.target.value)} className="text-sm" />
+              </div>
             </div>
+            {newOpenAt && (
+              <p className="text-xs text-violet-500 bg-violet-50 px-3 py-2 rounded-lg">
+                시작일이 설정되면 비공개로 생성되고, 해당 시간에 자동으로 공개됩니다.
+              </p>
+            )}
             {createError && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{createError}</p>}
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>취소</Button>
@@ -666,9 +694,15 @@ export function AssignmentsClientWrapper({
               <Label className="text-sm font-medium">설명 <span className="text-gray-400 font-normal">(선택)</span></Label>
               <Textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} className="resize-none min-h-[80px] text-sm" />
             </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">마감일 <span className="text-gray-400 font-normal">(선택)</span></Label>
-              <Input type="datetime-local" value={editDeadline} onChange={(e) => setEditDeadline(e.target.value)} className="text-sm" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">시작일 <span className="text-gray-400 font-normal">(자동 공개)</span></Label>
+                <Input type="datetime-local" value={editOpenAt} onChange={(e) => setEditOpenAt(e.target.value)} className="text-sm" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">마감일 <span className="text-gray-400 font-normal">(선택)</span></Label>
+                <Input type="datetime-local" value={editDeadline} onChange={(e) => setEditDeadline(e.target.value)} className="text-sm" />
+              </div>
             </div>
             {editError && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{editError}</p>}
             <div className="flex justify-end gap-2">
