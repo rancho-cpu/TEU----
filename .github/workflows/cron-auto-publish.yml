@@ -1,0 +1,16 @@
+name: Auto Publish Scheduled Items
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call auto-publish endpoint
+        run: |
+          curl -sS -f -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://teu-classroom.vercel.app/api/cron/auto-publish
