@@ -42,7 +42,7 @@ interface DraftQuestion {
   options?: string[]
 }
 
-const MAX_QUESTIONS = 10
+const MAX_QUESTIONS = 20
 
 interface CreateSurveyModalProps {
   cohortId: string
