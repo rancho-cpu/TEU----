@@ -9,7 +9,7 @@ export const SECTION_STYLE: Record<string, string> = {
   '그랜드챌린지':    'bg-orange-100 text-orange-800',
   '퍼스펙티브':      'bg-teal-100 text-teal-800',
   '익스포넨셜':      'bg-purple-100 text-purple-800',
-  '이노베이션킷':    'bg-rose-100 text-rose-800',
+  '이노베이션툴킷':  'bg-rose-100 text-rose-800',
   '개인/팀프로젝트': 'bg-amber-100 text-amber-800',
 }
 

@@ -11,7 +11,7 @@ import { Loader2, Trash2, Plus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export const SECTION_TYPES = [
-  '키노트', '그랜드챌린지', '퍼스펙티브', '익스포넨셜', '이노베이션킷', '개인/팀프로젝트',
+  '키노트', '그랜드챌린지', '퍼스펙티브', '익스포넨셜', '이노베이션툴킷', '개인/팀프로젝트',
 ]
 
 interface Props {
@@ -121,11 +121,25 @@ export function AddScheduleModal({ cohortId, open, onClose, onSaved, editing }: 
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">시작</Label>
-              <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="text-sm" />
+              <Input
+                type="text"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                placeholder="09:30"
+                maxLength={5}
+                className="text-sm font-mono"
+              />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">종료</Label>
-              <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="text-sm" />
+              <Input
+                type="text"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                placeholder="11:00"
+                maxLength={5}
+                className="text-sm font-mono"
+              />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">장소</Label>
