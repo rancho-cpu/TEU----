@@ -16,7 +16,7 @@ import {
 import { format, parseISO, isPast } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import type { Survey, SurveyQuestion, SurveyResponse } from '@/types'
-import { ClipboardList, Users, Star, BarChart2, MoreVertical, Trash2, Download, Pencil, Eye, EyeOff, CheckCircle2, XCircle, Copy } from 'lucide-react'
+import { ClipboardList, Users, Star, BarChart2, MoreVertical, Trash2, Download, Pencil, Eye, EyeOff, CheckCircle2, XCircle, Copy, Calendar } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -480,6 +480,12 @@ export function SurveyCard({ survey, cohortId, responseCount, isAdmin, alreadyRe
           <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 leading-snug">
             {survey.title}
           </h3>
+          {!localPublished && survey.open_at && new Date(survey.open_at) > new Date() && (
+            <p className="text-xs font-medium text-violet-500 flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
+              {new Date(survey.open_at).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 자동 공개 예정
+            </p>
+          )}
           <p className={`text-xs font-medium ${isExpired ? 'text-gray-400' : 'text-rose-500'}`}>
             {formatDeadline(survey.deadline)}
           </p>
