@@ -3,7 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { sendPushToUsers } from '@/lib/push'
 
 // GET /api/cron/deadline-1h
-// 30분마다 실행 — 마감 55~75분 전 과제 미제출자에게 웹 푸시 전송
+// 30분마다 실행 — 마감 45~90분 전 과제 미제출자에게 알림 전송 (GitHub Actions 지연 대응)
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
@@ -13,8 +13,8 @@ export async function GET(req: NextRequest) {
 
   const supabase = createServiceClient()
   const now = new Date()
-  const windowStart = new Date(now.getTime() + 55 * 60_000)
-  const windowEnd = new Date(now.getTime() + 75 * 60_000)
+  const windowStart = new Date(now.getTime() + 45 * 60_000)
+  const windowEnd = new Date(now.getTime() + 90 * 60_000)
 
   const { data: assignments } = await supabase
     .from('assignments')
@@ -51,7 +51,22 @@ export async function GET(req: NextRequest) {
 
     if (!unsubmittedIds.length) continue
 
-    const rows = unsubmittedIds.map((userId) => ({
+    // 최근 2시간 내 동일 과제 알림을 이미 받은 사람 제외 (중복 방지)
+    const cutoff = new Date(now.getTime() - 2 * 60 * 60_000).toISOString()
+    const { data: alreadyNotified } = await supabase
+      .from('notifications')
+      .select('user_id')
+      .eq('related_id', assignment.id)
+      .eq('type', 'deadline')
+      .gte('created_at', cutoff)
+      .in('user_id', unsubmittedIds)
+
+    const notifiedSet = new Set((alreadyNotified ?? []).map((n) => n.user_id as string))
+    const targetIds = unsubmittedIds.filter((id) => !notifiedSet.has(id))
+
+    if (!targetIds.length) continue
+
+    const rows = targetIds.map((userId) => ({
       cohort_id: assignment.cohort_id,
       user_id: userId,
       title: '⏰ 마감 1시간 전!',
@@ -62,12 +77,12 @@ export async function GET(req: NextRequest) {
     await supabase.from('notifications').insert(rows)
 
     await sendPushToUsers(
-      unsubmittedIds,
+      targetIds,
       '⏰ 마감 1시간 전!',
       `"${assignment.title}" 과제 마감이 1시간 남았습니다. 아직 제출 전이라면 서두르세요!`,
       `/${assignment.cohort_id}/assignments`
     )
-    totalSent += unsubmittedIds.length
+    totalSent += targetIds.length
   }
 
   return NextResponse.json({ message: 'Done', count: totalSent })
