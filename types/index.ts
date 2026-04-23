@@ -287,6 +287,12 @@ export interface Notification {
   sender?: { name: string | null; avatar_url: string | null } | null
 }
 
+export interface ScheduleSpeaker {
+  name: string
+  affiliation: string
+  title: string
+}
+
 export interface ScheduleSession {
   id: string
   cohort_id: string
@@ -295,11 +301,9 @@ export interface ScheduleSession {
   location: string
   start_time: string
   end_time: string
-  section_type: string
+  section_types: string[]
   topic: string
-  speaker_name: string | null
-  speaker_affiliation: string | null
-  speaker_title: string | null
+  speakers: ScheduleSpeaker[]
   order_index: number
   created_at: string
 }

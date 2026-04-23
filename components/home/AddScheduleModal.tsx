@@ -2,14 +2,15 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { ScheduleSession } from '@/types'
+import type { ScheduleSession, ScheduleSpeaker } from '@/types'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2, Trash2 } from 'lucide-react'
+import { Loader2, Trash2, Plus, X } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
-const SECTION_TYPES = [
+export const SECTION_TYPES = [
   '키노트', '그랜드챌린지', '퍼스펙티브', '익스포넨셜', '이노베이션킷', '개인/팀프로젝트',
 ]
 
@@ -20,6 +21,8 @@ interface Props {
   onSaved: (session: ScheduleSession) => void
   editing?: ScheduleSession | null
 }
+
+const emptySpeaker = (): ScheduleSpeaker => ({ name: '', affiliation: '', title: '' })
 
 export function AddScheduleModal({ cohortId, open, onClose, onSaved, editing }: Props) {
   const supabase = createClient()
@@ -32,11 +35,22 @@ export function AddScheduleModal({ cohortId, open, onClose, onSaved, editing }: 
   const [location, setLocation] = useState(editing?.location ?? '오프라인')
   const [startTime, setStartTime] = useState(editing?.start_time?.slice(0, 5) ?? '')
   const [endTime, setEndTime] = useState(editing?.end_time?.slice(0, 5) ?? '')
-  const [sectionType, setSectionType] = useState(editing?.section_type ?? SECTION_TYPES[0])
+  const [sectionTypes, setSectionTypes] = useState<string[]>(editing?.section_types ?? [])
   const [topic, setTopic] = useState(editing?.topic ?? '')
-  const [speakerName, setSpeakerName] = useState(editing?.speaker_name ?? '')
-  const [speakerAffiliation, setSpeakerAffiliation] = useState(editing?.speaker_affiliation ?? '')
-  const [speakerTitle, setSpeakerTitle] = useState(editing?.speaker_title ?? '')
+  const [speakers, setSpeakers] = useState<ScheduleSpeaker[]>(
+    editing?.speakers?.length ? editing.speakers : [emptySpeaker()]
+  )
+
+  const toggleSection = (type: string) =>
+    setSectionTypes((prev) =>
+      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+    )
+
+  const updateSpeaker = (idx: number, field: keyof ScheduleSpeaker, value: string) =>
+    setSpeakers((prev) => prev.map((s, i) => (i === idx ? { ...s, [field]: value } : s)))
+
+  const addSpeaker = () => setSpeakers((prev) => [...prev, emptySpeaker()])
+  const removeSpeaker = (idx: number) => setSpeakers((prev) => prev.filter((_, i) => i !== idx))
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -47,6 +61,10 @@ export function AddScheduleModal({ cohortId, open, onClose, onSaved, editing }: 
     setLoading(true)
     setError(null)
 
+    const cleanedSpeakers = speakers
+      .filter((s) => s.name.trim())
+      .map((s) => ({ name: s.name.trim(), affiliation: s.affiliation.trim(), title: s.title.trim() }))
+
     const payload = {
       cohort_id: cohortId,
       week_num: parseInt(weekNum),
@@ -54,11 +72,9 @@ export function AddScheduleModal({ cohortId, open, onClose, onSaved, editing }: 
       location,
       start_time: startTime,
       end_time: endTime,
-      section_type: sectionType,
+      section_types: sectionTypes,
       topic: topic.trim(),
-      speaker_name: speakerName.trim() || null,
-      speaker_affiliation: speakerAffiliation.trim() || null,
-      speaker_title: speakerTitle.trim() || null,
+      speakers: cleanedSpeakers,
     }
 
     const query = editing
@@ -88,6 +104,8 @@ export function AddScheduleModal({ cohortId, open, onClose, onSaved, editing }: 
           <DialogTitle>{editing ? '세션 수정' : '새 세션 추가'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+
+          {/* 차수 + 날짜 */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">차수</Label>
@@ -98,6 +116,8 @@ export function AddScheduleModal({ cohortId, open, onClose, onSaved, editing }: 
               <Input type="date" value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} className="text-sm" />
             </div>
           </div>
+
+          {/* 시간 + 장소 */}
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">시작</Label>
@@ -119,35 +139,86 @@ export function AddScheduleModal({ cohortId, open, onClose, onSaved, editing }: 
               </select>
             </div>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">섹션</Label>
-            <select
-              value={sectionType}
-              onChange={(e) => setSectionType(e.target.value)}
-              className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
-            >
-              {SECTION_TYPES.map((t) => <option key={t}>{t}</option>)}
-            </select>
+
+          {/* 섹션 다중 선택 */}
+          <div className="space-y-1.5">
+            <Label className="text-xs">섹션 <span className="text-gray-400">(복수 선택 가능)</span></Label>
+            <div className="flex flex-wrap gap-2">
+              {SECTION_TYPES.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => toggleSection(t)}
+                  className={cn(
+                    'text-xs px-3 py-1 rounded-full border-2 font-medium transition-all',
+                    sectionTypes.includes(t)
+                      ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                      : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                  )}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* 주제 */}
           <div className="space-y-1">
             <Label className="text-xs">강연 주제 / 내용</Label>
             <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="주제를 입력하세요" className="text-sm" />
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1">
+
+          {/* 연사 (다중) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
               <Label className="text-xs">연사</Label>
-              <Input value={speakerName} onChange={(e) => setSpeakerName(e.target.value)} placeholder="이름" className="text-sm" />
+              <button
+                type="button"
+                onClick={addSpeaker}
+                className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"
+              >
+                <Plus className="w-3 h-3" />연사 추가
+              </button>
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">소속</Label>
-              <Input value={speakerAffiliation} onChange={(e) => setSpeakerAffiliation(e.target.value)} placeholder="소속" className="text-sm" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">직책</Label>
-              <Input value={speakerTitle} onChange={(e) => setSpeakerTitle(e.target.value)} placeholder="직책" className="text-sm" />
+            <div className="space-y-2">
+              {speakers.map((sp, idx) => (
+                <div key={idx} className="flex gap-2 items-start">
+                  <div className="grid grid-cols-3 gap-2 flex-1">
+                    <Input
+                      value={sp.name}
+                      onChange={(e) => updateSpeaker(idx, 'name', e.target.value)}
+                      placeholder="이름"
+                      className="text-sm"
+                    />
+                    <Input
+                      value={sp.affiliation}
+                      onChange={(e) => updateSpeaker(idx, 'affiliation', e.target.value)}
+                      placeholder="소속"
+                      className="text-sm"
+                    />
+                    <Input
+                      value={sp.title}
+                      onChange={(e) => updateSpeaker(idx, 'title', e.target.value)}
+                      placeholder="직책"
+                      className="text-sm"
+                    />
+                  </div>
+                  {speakers.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeSpeaker(idx)}
+                      className="mt-2 text-gray-300 hover:text-red-400 flex-shrink-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
+
           {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+
           <div className="flex items-center justify-between pt-1">
             {editing ? (
               <Button type="button" variant="ghost" size="sm" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={handleDelete} disabled={deleting}>

@@ -4,13 +4,13 @@ import type { ScheduleSession } from '@/types'
 import { cn } from '@/lib/utils'
 import { MapPin, Wifi } from 'lucide-react'
 
-const SECTION_STYLE: Record<string, string> = {
-  '키노트':         'bg-blue-100 text-blue-800',
-  '그랜드챌린지':   'bg-orange-100 text-orange-800',
-  '퍼스펙티브':     'bg-teal-100 text-teal-800',
-  '익스포넨셜':     'bg-purple-100 text-purple-800',
-  '이노베이션킷':   'bg-rose-100 text-rose-800',
-  '개인/팀프로젝트':'bg-amber-100 text-amber-800',
+export const SECTION_STYLE: Record<string, string> = {
+  '키노트':          'bg-blue-100 text-blue-800',
+  '그랜드챌린지':    'bg-orange-100 text-orange-800',
+  '퍼스펙티브':      'bg-teal-100 text-teal-800',
+  '익스포넨셜':      'bg-purple-100 text-purple-800',
+  '이노베이션킷':    'bg-rose-100 text-rose-800',
+  '개인/팀프로젝트': 'bg-amber-100 text-amber-800',
 }
 
 function sectionStyle(type: string) {
@@ -30,7 +30,6 @@ export function ScheduleTable({ sessions, isAdmin, onEdit }: Props) {
     )
   }
 
-  // group by week_num → session_date
   const byWeek = new Map<number, Map<string, ScheduleSession[]>>()
   for (const s of sessions) {
     if (!byWeek.has(s.week_num)) byWeek.set(s.week_num, new Map())
@@ -41,14 +40,10 @@ export function ScheduleTable({ sessions, isAdmin, onEdit }: Props) {
 
   const weeks = [...byWeek.entries()].sort((a, b) => a[0] - b[0])
 
-  const dayLabel = (dateStr: string) => {
-    const days = ['일', '월', '화', '수', '목', '금', '토']
-    return days[new Date(dateStr).getDay()]
-  }
-
-  const dateLabel = (dateStr: string) => {
-    const d = new Date(dateStr)
-    return `${d.getMonth() + 1}월 ${d.getDate()}일`
+  const dayLabel = (d: string) => ['일', '월', '화', '수', '목', '금', '토'][new Date(d).getDay()]
+  const dateLabel = (d: string) => {
+    const dt = new Date(d)
+    return `${dt.getMonth() + 1}월 ${dt.getDate()}일`
   }
 
   return (
@@ -65,7 +60,7 @@ export function ScheduleTable({ sessions, isAdmin, onEdit }: Props) {
             <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">연사</th>
             <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">소속</th>
             <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">직책</th>
-            {isAdmin && <th className="px-3 py-2.5" />}
+            {isAdmin && <th className="px-3 py-2.5 w-10" />}
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
@@ -75,72 +70,83 @@ export function ScheduleTable({ sessions, isAdmin, onEdit }: Props) {
             let weekRendered = false
 
             return dates.map(([date, daySessions]) => {
-              const sortedSessions = [...daySessions].sort((a, b) =>
-                a.start_time.localeCompare(b.start_time)
-              )
-              return sortedSessions.map((session, idx) => {
+              const sorted = [...daySessions].sort((a, b) => a.start_time.localeCompare(b.start_time))
+
+              return sorted.map((session, idx) => {
                 const showWeek = !weekRendered && idx === 0
                 if (showWeek) weekRendered = true
                 const showDate = idx === 0
 
+                // 이 세션의 연사 수 (최소 1행)
+                const speakerCount = Math.max(session.speakers.length, 1)
+
                 return (
-                  <tr key={session.id} className="hover:bg-gray-50/50 transition-colors">
+                  <tr key={session.id} className="hover:bg-gray-50/50 transition-colors align-top">
                     {showWeek && (
-                      <td
-                        rowSpan={totalRows}
-                        className="px-3 py-2 font-semibold text-gray-700 whitespace-nowrap align-top border-r border-gray-100"
-                      >
+                      <td rowSpan={totalRows} className="px-3 py-2 font-semibold text-gray-700 whitespace-nowrap border-r border-gray-100">
                         {weekNum}주차
                       </td>
                     )}
                     {showDate && (
-                      <td
-                        rowSpan={sortedSessions.length}
-                        className="px-3 py-2 whitespace-nowrap align-top border-r border-gray-100"
-                      >
+                      <td rowSpan={sorted.length} className="px-3 py-2 whitespace-nowrap border-r border-gray-100">
                         <p className="font-medium text-gray-800">{dateLabel(date)}</p>
                         <p className="text-xs text-gray-400">{dayLabel(date)}</p>
                       </td>
                     )}
                     {showDate && (
-                      <td
-                        rowSpan={sortedSessions.length}
-                        className="px-3 py-2 whitespace-nowrap align-top border-r border-gray-100"
-                      >
+                      <td rowSpan={sorted.length} className="px-3 py-2 whitespace-nowrap border-r border-gray-100">
                         <span className={cn(
                           'inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full',
-                          session.location === '온라인'
-                            ? 'bg-sky-50 text-sky-700'
-                            : 'bg-emerald-50 text-emerald-700'
+                          session.location === '온라인' ? 'bg-sky-50 text-sky-700' : 'bg-emerald-50 text-emerald-700'
                         )}>
-                          {session.location === '온라인'
-                            ? <Wifi className="w-3 h-3" />
-                            : <MapPin className="w-3 h-3" />}
+                          {session.location === '온라인' ? <Wifi className="w-3 h-3" /> : <MapPin className="w-3 h-3" />}
                           {session.location}
                         </span>
                       </td>
                     )}
+                    {/* 일시 */}
                     <td className="px-3 py-2 whitespace-nowrap text-gray-600 font-mono text-xs">
                       {session.start_time.slice(0, 5)}–{session.end_time.slice(0, 5)}
                     </td>
+                    {/* 섹션 — 복수 배지 */}
                     <td className="px-3 py-2">
-                      <span className={cn(
-                        'inline-block text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap',
-                        sectionStyle(session.section_type)
-                      )}>
-                        {session.section_type}
-                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {(session.section_types ?? []).map((t) => (
+                          <span key={t} className={cn('text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap', sectionStyle(t))}>
+                            {t}
+                          </span>
+                        ))}
+                      </div>
                     </td>
+                    {/* 주제 */}
                     <td className="px-3 py-2 text-gray-800 max-w-xs">{session.topic}</td>
-                    <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{session.speaker_name ?? ''}</td>
-                    <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{session.speaker_affiliation ?? ''}</td>
-                    <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{session.speaker_title ?? ''}</td>
+                    {/* 연사 — 다중 */}
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <div className="space-y-1">
+                        {session.speakers.length > 0
+                          ? session.speakers.map((sp, si) => (
+                              <p key={si} className="text-gray-700">{sp.name}</p>
+                            ))
+                          : <span className="text-gray-300">—</span>}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <div className="space-y-1">
+                        {session.speakers.map((sp, si) => (
+                          <p key={si} className="text-gray-500 text-xs">{sp.affiliation}</p>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <div className="space-y-1">
+                        {session.speakers.map((sp, si) => (
+                          <p key={si} className="text-gray-500 text-xs">{sp.title}</p>
+                        ))}
+                      </div>
+                    </td>
                     {isAdmin && (
                       <td className="px-3 py-2">
-                        <button
-                          onClick={() => onEdit?.(session)}
-                          className="text-xs text-gray-400 hover:text-indigo-600 underline"
-                        >
+                        <button onClick={() => onEdit?.(session)} className="text-xs text-gray-400 hover:text-indigo-600 underline">
                           수정
                         </button>
                       </td>
