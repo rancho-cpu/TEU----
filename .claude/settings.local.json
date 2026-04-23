@@ -57,7 +57,8 @@
       "Bash(node -e \"const l = require\\('lucide-react'\\); console.log\\(Object.keys\\(l\\).filter\\(k => k.toLowerCase\\(\\).includes\\('linked'\\)\\)\\)\")",
       "Bash(npx supabase *)",
       "Bash(npx next *)",
-      "Bash(gh run *)"
+      "Bash(gh run *)",
+      "PowerShell(gh run list --workflow=cron-deadline-1h.yml --limit 10)"
     ]
   }
 }

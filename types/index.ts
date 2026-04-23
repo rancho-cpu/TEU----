@@ -286,3 +286,20 @@ export interface Notification {
   sender_id: string | null
   sender?: { name: string | null; avatar_url: string | null } | null
 }
+
+export interface ScheduleSession {
+  id: string
+  cohort_id: string
+  week_num: number
+  session_date: string
+  location: string
+  start_time: string
+  end_time: string
+  section_type: string
+  topic: string
+  speaker_name: string | null
+  speaker_affiliation: string | null
+  speaker_title: string | null
+  order_index: number
+  created_at: string
+}
