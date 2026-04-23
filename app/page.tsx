@@ -17,7 +17,7 @@ export default async function RootPage() {
     .limit(1)
     .single()
 
-  if (member) redirect(`/${member.cohort_id}/contents`)
+  if (member) redirect(`/${member.cohort_id}/home`)
 
   const { data: cohort } = await supabase
     .from('cohorts')
@@ -26,7 +26,7 @@ export default async function RootPage() {
     .limit(1)
     .single()
 
-  if (cohort) redirect(`/${cohort.id}/contents`)
+  if (cohort) redirect(`/${cohort.id}/home`)
 
   redirect('/setup')
 }

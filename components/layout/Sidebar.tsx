@@ -6,13 +6,14 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import {
   BookOpen, Users, BarChart2, Users2, Settings,
-  ExternalLink, LogOut, Images, ClipboardList, UserCircle2, BookMarked, CalendarCheck,
+  ExternalLink, LogOut, Images, ClipboardList, UserCircle2, BookMarked, CalendarCheck, Home,
 } from 'lucide-react'
 import type { Cohort, Profile, Shortcut } from '@/types'
 import { CohortSwitcher } from './CohortSwitcher'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 
 const navItems = [
+  { href: 'home',        label: '홈',          icon: Home },
   { href: 'contents',    label: '콘텐츠',      icon: BookOpen },
   { href: 'community',   label: '커뮤니티',    icon: Users },
   { href: 'assignments', label: '과제 제출',   icon: ClipboardList },
