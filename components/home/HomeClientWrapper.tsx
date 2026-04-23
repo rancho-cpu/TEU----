@@ -125,6 +125,7 @@ export function HomeClientWrapper({ cohortId, isAdmin, dueItems, sessions: initi
       </section>
 
       <AddScheduleModal
+        key={editingSession?.id ?? 'new'}
         cohortId={cohortId}
         open={modalOpen}
         onClose={() => setModalOpen(false)}
