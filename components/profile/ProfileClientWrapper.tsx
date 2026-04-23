@@ -51,9 +51,45 @@ export function ProfileClientWrapper({ profile, avatarBaseUrl }: Props) {
       setPushStatus('unsupported')
       return
     }
-    setPushStatus(Notification.permission as 'default' | 'granted' | 'denied')
-    // 서비스 워커 등록
+    const permission = Notification.permission as 'default' | 'granted' | 'denied'
+    setPushStatus(permission)
     navigator.serviceWorker.register('/sw.js').catch(() => null)
+
+    // 이미 허용된 경우 구독 자동 등록
+    if (permission === 'granted') {
+      navigator.serviceWorker.ready.then(async (reg) => {
+        const existing = await reg.pushManager.getSubscription()
+        const sub = existing ?? await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+        })
+        await fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subscription: sub.toJSON() }),
+        })
+      }).catch(() => null)
+      return
+    }
+
+    // 아직 묻지 않은 경우 바로 허용 요청
+    if (permission === 'default') {
+      Notification.requestPermission().then(async (result) => {
+        setPushStatus(result as 'default' | 'granted' | 'denied')
+        if (result !== 'granted') return
+        const reg = await navigator.serviceWorker.ready
+        const existing = await reg.pushManager.getSubscription()
+        const sub = existing ?? await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+        })
+        await fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subscription: sub.toJSON() }),
+        })
+      }).catch(() => null)
+    }
   }, [])
 
   const handleEnablePush = async () => {
