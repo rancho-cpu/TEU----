@@ -11,7 +11,7 @@ import { Loader2, Trash2, Plus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export const SECTION_TYPES = [
-  '키노트', '그랜드챌린지', '퍼스펙티브', '익스포넨셜', '이노베이션툴킷', '개인/팀프로젝트',
+  '키노트', '그랜드챌린지', '퍼스펙티브', '익스포넨셜', '이노베이션툴킷', '개인/팀프로젝트', '필드트립',
 ]
 
 // 숫자만 추출해 HH:MM 형태로 실시간 포맷

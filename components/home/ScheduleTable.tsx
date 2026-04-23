@@ -11,6 +11,7 @@ export const SECTION_STYLE: Record<string, string> = {
   '익스포넨셜':      'bg-purple-100 text-purple-800',
   '이노베이션툴킷':  'bg-rose-100 text-rose-800',
   '개인/팀프로젝트': 'bg-amber-100 text-amber-800',
+  '필드트립':        'bg-green-100 text-green-800',
 }
 
 function sectionStyle(type: string) {
