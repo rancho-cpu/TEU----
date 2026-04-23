@@ -7,7 +7,7 @@ import type { Assignment, Survey, ScheduleSession, ScheduleSpeaker } from '@/typ
 import { ScheduleTable } from './ScheduleTable'
 import { AddScheduleModal } from './AddScheduleModal'
 import { Button } from '@/components/ui/button'
-import { ClipboardList, AlertCircle, Plus, CalendarDays, CheckCircle2, Download, Upload, Loader2 } from 'lucide-react'
+import { ClipboardList, AlertCircle, Plus, CalendarDays, CheckCircle2, Download, Upload, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface DueItem {
@@ -133,6 +133,7 @@ export function HomeClientWrapper({ cohortId, isAdmin, dueItems, sessions: initi
   const [editingSession, setEditingSession] = useState<ScheduleSession | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadMsg, setUploadMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  const [scheduleOpen, setScheduleOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const handleSaved = (session: ScheduleSession) => {
@@ -251,10 +252,16 @@ export function HomeClientWrapper({ cohortId, isAdmin, dueItems, sessions: initi
       {/* 전체 스케줄 */}
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2">
+          <button
+            onClick={() => setScheduleOpen((o) => !o)}
+            className="flex items-center gap-2 text-base font-semibold text-gray-800 hover:text-indigo-600 transition-colors"
+          >
             <CalendarDays className="w-4 h-4 text-indigo-500" />
             전체 스케줄
-          </h2>
+            {scheduleOpen
+              ? <ChevronUp className="w-4 h-4 text-gray-400" />
+              : <ChevronDown className="w-4 h-4 text-gray-400" />}
+          </button>
           {isAdmin && (
             <div className="flex items-center gap-2">
               <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={downloadTemplate}>
@@ -281,11 +288,13 @@ export function HomeClientWrapper({ cohortId, isAdmin, dueItems, sessions: initi
           </div>
         )}
 
-        <ScheduleTable
-          sessions={sessions}
-          isAdmin={isAdmin}
-          onEdit={(s) => { setEditingSession(s); setModalOpen(true) }}
-        />
+        {scheduleOpen && (
+          <ScheduleTable
+            sessions={sessions}
+            isAdmin={isAdmin}
+            onEdit={(s) => { setEditingSession(s); setModalOpen(true) }}
+          />
+        )}
       </section>
 
       <AddScheduleModal
