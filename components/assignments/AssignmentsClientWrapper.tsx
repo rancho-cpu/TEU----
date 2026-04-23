@@ -547,6 +547,7 @@ export function AssignmentsClientWrapper({
                   )}
                   <SurveyCard
                     survey={s}
+                    cohortId={cohortId}
                     responseCount={isAdmin ? (responseCounts[s.id] ?? 0) : undefined}
                     isAdmin={isAdmin}
                     alreadyResponded={!isAdmin && respondedIds.has(s.id)}

@@ -16,7 +16,7 @@ import {
 import { format, parseISO, isPast } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import type { Survey, SurveyQuestion, SurveyResponse } from '@/types'
-import { ClipboardList, Users, Star, BarChart2, MoreVertical, Trash2, Download, Pencil, Eye, EyeOff } from 'lucide-react'
+import { ClipboardList, Users, Star, BarChart2, MoreVertical, Trash2, Download, Pencil, Eye, EyeOff, CheckCircle2, XCircle } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -24,6 +24,7 @@ import { createClient } from '@/lib/supabase/client'
 
 interface SurveyCardProps {
   survey: Survey
+  cohortId?: string
   responseCount?: number
   isAdmin?: boolean
   alreadyResponded?: boolean
@@ -31,6 +32,12 @@ interface SurveyCardProps {
   onResponded?: (surveyId: string) => void
   onEditRequest?: () => void
   onPublishToggled?: (id: string, isPublished: boolean) => void
+}
+
+interface MemberInfo {
+  user_id: string
+  name: string
+  avatar_url: string | null
 }
 
 function formatDeadline(dateStr: string | null): string {
@@ -167,7 +174,7 @@ function TextResult({ answers }: { answers: string[] }) {
 // ────────────────────────────────────────────────────────────
 // Main component
 // ────────────────────────────────────────────────────────────
-export function SurveyCard({ survey, responseCount, isAdmin, alreadyResponded, onDeleted, onResponded, onEditRequest, onPublishToggled }: SurveyCardProps) {
+export function SurveyCard({ survey, cohortId, responseCount, isAdmin, alreadyResponded, onDeleted, onResponded, onEditRequest, onPublishToggled }: SurveyCardProps) {
   const [mode, setMode] = useState<'idle' | 'submit' | 'results'>('idle')
   const [answers, setAnswers] = useState<AnswerMap>({})
   const [submitting, setSubmitting] = useState(false)
@@ -183,6 +190,9 @@ export function SurveyCard({ survey, responseCount, isAdmin, alreadyResponded, o
   // results state
   const [responses, setResponses] = useState<SurveyResponse[]>([])
   const [loadingResults, setLoadingResults] = useState(false)
+  const [respondedMembers, setRespondedMembers] = useState<MemberInfo[]>([])
+  const [nonRespondedMembers, setNonRespondedMembers] = useState<MemberInfo[]>([])
+  const [resultsTab, setResultsTab] = useState<'chart' | 'responded' | 'not_responded'>('chart')
 
   const isExpired = survey.deadline ? isPast(parseISO(survey.deadline)) : false
 
@@ -223,16 +233,54 @@ export function SurveyCard({ survey, responseCount, isAdmin, alreadyResponded, o
 
   const openResults = async () => {
     setMode('results')
+    setResultsTab('chart')
     setLoadingResults(true)
     try {
       const supabase = createClient()
-      const { data, error } = await supabase
+
+      const respPromise = supabase
         .from('survey_responses')
         .select('*')
         .eq('survey_id', survey.id)
         .order('submitted_at', { ascending: false })
-      if (error) throw error
-      setResponses((data as SurveyResponse[]) ?? [])
+
+      const membersPromise = cohortId
+        ? supabase
+            .from('cohort_members')
+            .select('user_id, profile:profiles!user_id(name, avatar_url, role)')
+            .eq('cohort_id', cohortId)
+        : Promise.resolve({ data: null, error: null })
+
+      const [{ data: respData, error: respErr }, { data: membersData }] = await Promise.all([
+        respPromise,
+        membersPromise,
+      ])
+      if (respErr) throw respErr
+      const allResponses = (respData as SurveyResponse[]) ?? []
+      setResponses(allResponses)
+
+      if (membersData) {
+        const respondedSet = new Set(allResponses.map((r) => r.user_id))
+        type RawMember = { user_id: string; profile: { name: string; avatar_url: string | null; role: string } | { name: string; avatar_url: string | null; role: string }[] | null }
+        const members = (membersData as unknown as RawMember[])
+          .filter((m) => {
+            const p = Array.isArray(m.profile) ? m.profile[0] : m.profile
+            return p?.role !== 'admin'
+          })
+
+        const getProfile = (m: RawMember) => Array.isArray(m.profile) ? m.profile[0] : m.profile
+
+        setRespondedMembers(
+          members
+            .filter((m) => respondedSet.has(m.user_id))
+            .map((m) => ({ user_id: m.user_id, name: getProfile(m)?.name ?? '(이름 없음)', avatar_url: getProfile(m)?.avatar_url ?? null }))
+        )
+        setNonRespondedMembers(
+          members
+            .filter((m) => !respondedSet.has(m.user_id))
+            .map((m) => ({ user_id: m.user_id, name: getProfile(m)?.name ?? '(이름 없음)', avatar_url: getProfile(m)?.avatar_url ?? null }))
+        )
+      }
     } catch {
       setResponses([])
     } finally {
@@ -547,11 +595,48 @@ export function SurveyCard({ survey, responseCount, isAdmin, alreadyResponded, o
               {survey.title} — 결과
             </DialogTitle>
           </DialogHeader>
+
+          {/* 탭 */}
+          <div className="flex gap-1 border-b border-gray-100 -mx-1 px-1">
+            <button
+              onClick={() => setResultsTab('chart')}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-t transition-colors ${resultsTab === 'chart' ? 'text-indigo-600 border-b-2 border-indigo-500' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              <BarChart2 className="w-3.5 h-3.5" />
+              집계 결과
+            </button>
+            {cohortId && (
+              <>
+                <button
+                  onClick={() => setResultsTab('responded')}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-t transition-colors ${resultsTab === 'responded' ? 'text-indigo-600 border-b-2 border-indigo-500' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  응답함
+                  <span className="ml-0.5 bg-indigo-100 text-indigo-600 rounded-full px-1.5 py-0.5 text-[10px] font-bold">{respondedMembers.length}</span>
+                </button>
+                <button
+                  onClick={() => setResultsTab('not_responded')}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-t transition-colors ${resultsTab === 'not_responded' ? 'text-rose-600 border-b-2 border-rose-500' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                  미응답
+                  <span className="ml-0.5 bg-rose-100 text-rose-600 rounded-full px-1.5 py-0.5 text-[10px] font-bold">{nonRespondedMembers.length}</span>
+                </button>
+              </>
+            )}
+          </div>
+
           {loadingResults ? (
             <div className="py-16 text-center text-sm text-gray-400">불러오는 중...</div>
-          ) : (
+          ) : resultsTab === 'chart' ? (
             <ResultsView survey={survey} responses={responses} />
+          ) : resultsTab === 'responded' ? (
+            <MemberList members={respondedMembers} emptyText="아직 응답한 멤버가 없습니다." accent="indigo" />
+          ) : (
+            <MemberList members={nonRespondedMembers} emptyText="모든 멤버가 응답했습니다 🎉" accent="rose" />
           )}
+
           <DialogFooter className="gap-2">
             <Button
               variant="outline"
@@ -648,6 +733,39 @@ function QuestionField({ index, question, value, onChange }: QuestionFieldProps)
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+function MemberList({
+  members,
+  emptyText,
+  accent,
+}: {
+  members: MemberInfo[]
+  emptyText: string
+  accent: 'indigo' | 'rose'
+}) {
+  if (members.length === 0) {
+    return <p className="py-10 text-center text-sm text-gray-400">{emptyText}</p>
+  }
+  const bg = accent === 'indigo' ? 'bg-indigo-50' : 'bg-rose-50'
+  const text = accent === 'indigo' ? 'text-indigo-700' : 'text-rose-700'
+  return (
+    <div className="py-2 space-y-1 max-h-72 overflow-y-auto">
+      <p className="text-xs text-gray-400 mb-2">{members.length}명</p>
+      {members.map((m) => (
+        <div key={m.user_id} className={`flex items-center gap-3 px-3 py-2 rounded-lg ${bg}`}>
+          {m.avatar_url ? (
+            <img src={m.avatar_url} alt={m.name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+          ) : (
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${bg} ${text} border border-current/20`}>
+              {m.name.charAt(0)}
+            </div>
+          )}
+          <span className={`text-sm font-medium ${text}`}>{m.name}</span>
+        </div>
+      ))}
     </div>
   )
 }
