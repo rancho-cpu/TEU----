@@ -16,7 +16,7 @@ import {
 import { format, parseISO, isPast } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import type { Survey, SurveyQuestion, SurveyResponse } from '@/types'
-import { ClipboardList, Users, Star, BarChart2, MoreVertical, Trash2, Download, Pencil, Eye, EyeOff, CheckCircle2, XCircle } from 'lucide-react'
+import { ClipboardList, Users, Star, BarChart2, MoreVertical, Trash2, Download, Pencil, Eye, EyeOff, CheckCircle2, XCircle, Copy } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -31,6 +31,7 @@ interface SurveyCardProps {
   onDeleted?: (id: string) => void
   onResponded?: (surveyId: string) => void
   onEditRequest?: () => void
+  onDuplicateRequest?: () => void
   onPublishToggled?: (id: string, isPublished: boolean) => void
 }
 
@@ -174,7 +175,7 @@ function TextResult({ answers }: { answers: string[] }) {
 // ────────────────────────────────────────────────────────────
 // Main component
 // ────────────────────────────────────────────────────────────
-export function SurveyCard({ survey, cohortId, responseCount, isAdmin, alreadyResponded, onDeleted, onResponded, onEditRequest, onPublishToggled }: SurveyCardProps) {
+export function SurveyCard({ survey, cohortId, responseCount, isAdmin, alreadyResponded, onDeleted, onResponded, onEditRequest, onDuplicateRequest, onPublishToggled }: SurveyCardProps) {
   const [mode, setMode] = useState<'idle' | 'submit' | 'results'>('idle')
   const [answers, setAnswers] = useState<AnswerMap>({})
   const [submitting, setSubmitting] = useState(false)
@@ -423,6 +424,11 @@ export function SurveyCard({ survey, cohortId, responseCount, isAdmin, alreadyRe
                 {onEditRequest && (
                   <DropdownMenuItem onClick={onEditRequest}>
                     <Pencil className="w-4 h-4 mr-2" />수정
+                  </DropdownMenuItem>
+                )}
+                {onDuplicateRequest && (
+                  <DropdownMenuItem onClick={onDuplicateRequest}>
+                    <Copy className="w-4 h-4 mr-2" />복제
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem

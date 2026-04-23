@@ -20,7 +20,7 @@ import {
   ClipboardList, Plus, Trash2, CheckCircle2, Circle,
   Calendar, Loader2, Paperclip, X, FileText, FileImage,
   FileVideo, File, ChevronDown, ChevronUp, Users, PenLine, ClipboardCheck,
-  Eye, EyeOff,
+  Eye, EyeOff, Copy,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SurveyCard } from '@/components/contents/SurveyCard'
@@ -185,6 +185,43 @@ export function AssignmentsClientWrapper({
     if (!confirm('이 과제를 삭제하시겠습니까?')) return
     await supabase.from('assignments').delete().eq('id', id)
     setAssignments((prev) => prev.filter((a) => a.id !== id))
+  }
+
+  // ── 과제 복제 ─────────────────────────────────────────────
+  const handleDuplicateAssignment = async (a: Assignment) => {
+    const { data, error } = await supabase
+      .from('assignments')
+      .insert({
+        cohort_id: cohortId,
+        title: a.title + ' (복사)',
+        description: a.description,
+        deadline: a.deadline,
+        order_index: assignments.length,
+        is_published: false,
+      })
+      .select().single()
+    if (!error && data) {
+      setAssignments((prev) => [...prev, { ...data, submission_count: 0, user_submitted: false, my_submission: null }])
+    }
+  }
+
+  // ── 설문 복제 ─────────────────────────────────────────────
+  const handleDuplicateSurvey = async (s: Survey) => {
+    const { data, error } = await supabase
+      .from('surveys')
+      .insert({
+        cohort_id: cohortId,
+        title: s.title + ' (복사)',
+        description: s.description,
+        questions: s.questions,
+        deadline: s.deadline,
+        is_published: false,
+      })
+      .select().single()
+    if (!error && data) {
+      setSurveys((prev) => [...prev, data as Survey])
+      setResponseCounts((prev) => ({ ...prev, [(data as Survey).id]: 0 }))
+    }
   }
 
   // ── 과제 공개 토글 ────────────────────────────────────────
@@ -464,6 +501,9 @@ export function AssignmentsClientWrapper({
                                 <button onClick={() => openEditAssignment(a)} className="text-gray-400 hover:text-indigo-500 transition-colors" title="수정">
                                   <PenLine className="w-4 h-4" />
                                 </button>
+                                <button onClick={() => handleDuplicateAssignment(a)} className="text-gray-400 hover:text-indigo-500 transition-colors" title="복제">
+                                  <Copy className="w-4 h-4" />
+                                </button>
                                 <button onClick={() => handleDelete(a.id)} className="text-gray-400 hover:text-red-500 transition-colors" title="삭제">
                                   <Trash2 className="w-4 h-4" />
                                 </button>
@@ -545,6 +585,7 @@ export function AssignmentsClientWrapper({
                     onDeleted={handleSurveyDeleted}
                     onResponded={handleSurveyResponded}
                     onEditRequest={isAdmin ? () => setEditingSurvey(s) : undefined}
+                    onDuplicateRequest={isAdmin ? () => handleDuplicateSurvey(s) : undefined}
                     onPublishToggled={(id, isPublished) =>
                       setSurveys((prev) => prev.map((sv) => sv.id === id ? { ...sv, is_published: isPublished } : sv))
                     }
